@@ -106,7 +106,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (res.ok && data.qr_url) {
         // Open QR modal or redirect
-        window.open(`https://settings.jadwalmasjid.com/pair?device=${data.device_uuid}`, '_blank');
+        window.open(`https://app.jadwalmasjid.com/pair?device=${data.device_uuid}`, '_blank');
         // Refresh devices
         const slug = tenants.find(t => t.mosque_id === mosqueId)?.mosque_slug;
         if (slug) {
