@@ -159,9 +159,7 @@ export default function SettingsPage() {
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white py-10 px-4 shadow-lg">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-4 mb-2">
-            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/30">
-              <Database className="w-7 h-7" />
-            </div>
+            <img src="/logo.png" alt="Jadwal Masjid" className="w-14 h-14 rounded-full border-2 border-white/30" />
             <div>
               <h1 className="text-2xl font-bold">{mosqueName || 'Memuat...'}</h1>
               <div className="flex items-center gap-2 text-emerald-100">
@@ -245,7 +243,7 @@ export default function SettingsPage() {
                     });
                     router.push('/login');
                   }}
-                  className="btn-danger w-full"
+                  className="btn-danger w-full py-4"
                 >
                   Logout
                 </button>

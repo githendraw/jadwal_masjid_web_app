@@ -14,15 +14,23 @@ export async function POST(req: NextRequest) {
     if (!res.ok) {
       return NextResponse.json(data, { status: res.status });
     }
-    // Set token as httpOnly cookie
     const response = NextResponse.json(data);
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     response.cookies.set({
       name: 'token',
       value: data.token,
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      expires,
+    });
+    response.cookies.set({
+      name: 'role',
+      value: data.role,
+      httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+      expires,
     });
     return response;
   } catch (err) {

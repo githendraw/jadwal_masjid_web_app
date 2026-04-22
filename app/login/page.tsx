@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Church, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email('Email tidak valid'),
@@ -36,7 +36,10 @@ export default function LoginPage() {
         setErrorMessage(result.error || 'Login gagal');
         return;
       }
-      router.push('/settings');
+      // Set role cookie client-side (not httpOnly so middleware can read it)
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      document.cookie = `role=${result.role}; path=/; expires=${expires.toUTCString()}; SameSite=lax`;
+      router.push(result.role === 'superadmin' ? '/admin' : '/settings');
     } catch (err) {
       setErrorMessage('Terjadi kesalahan. Coba lagi.');
     }
@@ -55,7 +58,7 @@ export default function LoginPage() {
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full shadow-lg mb-6 border border-white/30 transform hover:scale-105 transition-transform duration-300">
-            <Church className="w-10 h-10 text-white" />
+            <img src="/logo.png" alt="Jadwal Masjid" className="w-12 h-12" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-3 tracking-tight drop-shadow-lg">Jadwal Masjid</h1>
           <p className="text-emerald-100 text-lg font-medium">Masuk ke akun masjid Anda</p>

@@ -16,13 +16,13 @@ export function middleware(request: NextRequest) {
   }
 
   // Role-based guards
+  // Superadmin can access /admin, regular users are redirected to /settings
   if (path.startsWith('/admin') && role !== 'superadmin') {
     return NextResponse.redirect(new URL('/settings', request.url));
   }
   
-  if (path.startsWith('/settings') && role === 'superadmin') {
-    return NextResponse.redirect(new URL('/admin', request.url));
-  }
+  // Superadmin can also access /settings (removed the redirect)
+  // Regular users stay at /settings as-is
 
   return NextResponse.next();
 }

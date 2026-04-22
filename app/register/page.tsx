@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Church, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, Building2 } from 'lucide-react';
 
 const formSchema = z.object({
   mosqueName: z.string().min(3, 'Nama masjid minimal 3 karakter'),
@@ -81,7 +81,7 @@ export default function RegisterPage() {
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full shadow-lg mb-6 border border-white/30 transform hover:scale-105 transition-transform duration-300">
-            <Church className="w-10 h-10 text-white" />
+            <img src="/logo.png" alt="Jadwal Masjid" className="w-12 h-12" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-3 tracking-tight drop-shadow-lg">Jadwal Masjid</h1>
           <p className="text-emerald-100 text-lg font-medium">Daftar masjid baru</p>
@@ -100,7 +100,7 @@ export default function RegisterPage() {
               <Label className="text-slate-700 font-semibold text-sm">Nama Masjid</Label>
               <div className="relative mt-2">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Church className="h-5 w-5 text-slate-400" />
+                  <Building2 className="h-5 w-5 text-slate-400" />
                 </div>
                 <Input
                   {...register('mosqueName')}
