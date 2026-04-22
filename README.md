@@ -1,40 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# Jadwal Masjid - Web App (Admin Dashboard)
 
-## Getting Started
+Sistem manajemen jadwal sholat masjid — dari pengaturan web hingga display TV.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 18+
+- MySQL 8.0+
+- npm
+
+## Setup
+
+### 1. Clone & Install
+
+```bash
+git clone https://github.com/githendraw/jadwal-mosque-settings.git
+cd jadwal-mosque-settings
+npm install
+```
+
+### 2. Database Migration
+
+Jalankan migrasi database untuk membuat/memperbarui schema:
+
+```bash
+# Lokal
+mysql -u root -p jadwal_masjid < migrations/000_full_schema.sql
+
+# Remote via Cloudflared tunnel (contoh)
+mysql -u masjid -p -h 127.0.0.1 -P 3307 jadwal_masjid < migrations/000_full_schema.sql
+```
+
+Migrasi ini akan:
+- Membuat semua tabel (`users`, `mosques`, `devices`, `payments`, `pairing_codes`)
+- Menambahkan kolom `address` di tabel `mosques` jika belum ada
+- Mengisi default settings JSON (`pengumumanJumat`, `pengumumanKajian`, `location`)
+- Menyinkronkan `address` dari `settings.location` untuk data yang sudah ada
+- Insert superadmin user (`admin@jadwalmasjid.com` / `password`)
+- Insert sample mosque (Masjid Al-Ikhlas Bandung)
+
+### 3. Environment Variables
+
+Buat file `.env` di root project:
+
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=jadwal_masjid
+PORT=4000
+JWT_SECRET=jadwal-masjid-secret
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+### 4. Run Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Server berjalan di `http://localhost:4000` (Next.js + Socket.io).
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+### 5. Run Production
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+```bash
+npm run build
+NODE_ENV=production npm run start
+```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+### 6. Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+docker-compose up -d
+```
 
-## Learn More
+## API Endpoints
 
-To learn more about Next.js, take a look at the following resources:
+Lihat [DOCUMENTATION.md](./DOCUMENTATION.md) untuk daftar lengkap API endpoints dan flow diagram.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+## Default Login
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Role | Email | Password |
+|------|-------|----------|
+| Superadmin | admin@jadwalmasjid.com | password |
 
-## Deploy on Vercel
+## Struktur Database
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Lihat `migrations/000_full_schema.sql` untuk schema lengkap.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+Kolom penting di tabel `mosques`:
+- `address` — Alamat masjid, tampil di TV sebagai location
+- `lat` / `long` — Koordinat untuk perhitungan jadwal sholat (Adhan.js)
+- `calculation_method` — Metode perhitungan (KEMENAG, JAKARTA_IST, ASRA, UM, MECCAH)
+- `settings` (JSON) — Berisi `pengumumanJumat`, `pengumumanKajian`, dan config lainnya
+
+## License
+
+Private
