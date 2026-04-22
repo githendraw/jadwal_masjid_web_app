@@ -506,7 +506,7 @@ export default function SettingsPage() {
                     disabled={addingDevice}
                     className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg"
                   >
-                    <MonitorPlus className="w-5 h-5" />
+                    <MonitorCog className="w-5 h-5" />
                     {addingDevice ? 'Memuat...' : 'Tambah TV'}
                   </button>
                 </div>
