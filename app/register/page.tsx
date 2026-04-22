@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, Eye, EyeOff, Building2 } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 const formSchema = z.object({
   mosqueName: z.string().min(3, 'Nama masjid minimal 3 karakter'),
@@ -106,9 +106,6 @@ export default function RegisterPage() {
             <Label htmlFor="mosqueName" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
               Nama Masjid
             </Label>
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Building2 className="h-5 w-5 text-slate-400" />
-            </div>
             <Input
               id="mosqueName"
               type="text"
@@ -126,9 +123,6 @@ export default function RegisterPage() {
             <Label htmlFor="email" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
               Email
             </Label>
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-slate-400" />
-            </div>
             <Input
               id="email"
               type="email"
@@ -146,9 +140,6 @@ export default function RegisterPage() {
             <Label htmlFor="password" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
               Password
             </Label>
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-slate-400" />
-            </div>
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
