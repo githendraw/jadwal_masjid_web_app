@@ -1,27 +1,33 @@
-import { Metadata } from 'next'
-import './globals.css'
-import { ReactQueryClientProvider } from '@/lib/providers'
+import { Metadata } from 'next';
+import './globals.css';
+import { ReactQueryClientProvider } from '@/lib/providers';
+import { Plus_Jakarta_Sans, Sora } from 'next/font/google';
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
+
+const sora = Sora({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sora',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: 'Jadwal Masjid - Settings',
-  description: 'Pengaturan masjid Anda',
-}
+  title: 'Jadwal Masjid',
+  description: 'Sistem manajemen jadwal sholat masjid',
+};
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
-      <head>
-        <link rel="icon" href="/favicon.ico?v=3" type="image/x-icon" />
-      </head>
-      <body>
-        <ReactQueryClientProvider>
-          {children}
-        </ReactQueryClientProvider>
+    <html lang="id" className={`${jakarta.variable} ${sora.variable}`}>
+      <body className="bg-background text-foreground font-sans antialiased">
+        <ReactQueryClientProvider>{children}</ReactQueryClientProvider>
       </body>
     </html>
-  )
+  );
 }

@@ -1,566 +1,688 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  Bell,
-  Database,
-  Globe,
-  Moon,
-  Sun,
-  Settings as SettingsIcon,
-  MapPin,
-  Play,
-  Pause,
-  RefreshCw,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  MonitorCog,
-  MonitorX,
-  Trash2,
-} from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '@/lib/auth';
+import { useSocket } from '@/lib/socket';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
-interface MosqueData {
-  name?: string;
-  settings?: {
-    prayer_times?: { imsak?: boolean; shubuh?: boolean; dhuhr?: boolean; ashar?: boolean; maghrib?: boolean; isya?: boolean };
-    ihror?: boolean;
-    mazhab?: boolean;
-    hijri?: boolean;
-    imsak?: boolean;
-    dark_mode?: boolean;
-    animations?: boolean;
-    push_notifications?: boolean;
-  };
-  lat?: number;
-  long?: number;
-  calculation_method?: string;
+type Section = 'general' | 'prayer-times' | 'qibla' | 'adhans' | 'devices';
+
+// === Sidebar Navigation Item ===
+function NavItem({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+        active
+          ? 'bg-emerald-500/15 text-emerald-400'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+// === Settings Section Wrapper ===
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="card rounded-xl">
+      <div className="card-header">
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        {description && <p className="text-muted-foreground text-sm mt-1">{description}</p>}
+      </div>
+      <div className="card-content space-y-5">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// === Toggle Switch ===
+function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!enabled)}
+      className="toggle"
+      role="switch"
+      aria-checked={enabled}
+    />
+  );
+}
+
+// === Prayer Times Row ===
+function PrayerTimeRow({
+  name,
+  time,
+  onEdit,
+}: {
+  name: string;
+  time: string;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
+      <span className="text-sm font-medium text-foreground">{name}</span>
+      <div className="flex items-center gap-3">
+        <span className="text-foreground text-sm font-mono">{time}</span>
+        <button onClick={onEdit} className="text-muted-foreground hover:text-foreground transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M11 4.7A2 2 0 0 1 12.7 4h5.1c.98-.02 1.8.72 1.8 1.6 0 .3-.1.6-.25.9l-7.35 10.4a1.3 1.3 0 0 1-1.8.3c-.3-.2-.5-.6-.5-1v-1.8c0-.3.1-.6.3-.8L17.5 5.7h-4.9l-4.6 11.5 4.4-8.8"/></svg>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function SettingsPage() {
+  const { user, logout } = useAuth();
+  const { socket } = useSocket();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'akun' | 'sinkronisasi' | 'umum' | 'peralatan'>('akun');
-  const [ihror, setIhror] = useState(true);
-  const [showMazhab, setShowMazhab] = useState(true);
-  const [showHijriyah, setShowHijriyah] = useState(true);
-  const [showImsak, setShowImsak] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [animations, setAnimations] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [mosqueName, setMosqueName] = useState('');
-  const [location, setLocation] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [mosqueId, setMosqueId] = useState<number | null>(null);
-  const [mosqueUuid, setMosqueUuid] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [addingDevice, setAddingDevice] = useState(false);
+  const queryClient = useQueryClient();
+  const [activeSection, setActiveSection] = useState<Section>('general');
+  const [editingTimes, setEditingTimes] = useState<{ [key: string]: string }>({});
+  const [selectedPrayer, setSelectedPrayer] = useState<string>('');
+  const [timeModalOpen, setTimeModalOpen] = useState(false);
+  const [editingGeneralModalOpen, setEditingGeneralModalOpen] = useState(false);
+  const [editingGeneralData, setEditingGeneralData] = useState({ id: '', key: '', value: '', status: 'disabled', order: 0 });
+  const [editingQiblaModalOpen, setEditingQiblaModalOpen] = useState(false);
+  const [editingQiblaData, setEditingQiblaData] = useState({ id: '', key: '', value: '', status: 'disabled', order: 0 });
+  const [editingAdhanModalOpen, setEditingAdhanModalOpen] = useState(false);
+  const [editingAdhanData, setEditingAdhanData] = useState({ id: '', key: '', value: '', status: 'disabled', order: 0 });
+  const [editingDevicesModalOpen, setEditingDevicesModalOpen] = useState(false);
+  const [editingDevicesData, setEditingDevicesData] = useState({ id: '', name: '', status: 'disabled', order: 0 });
 
-  interface Device {
-    device_id: string;
-    name: string;
-    is_active: number | null;
-    is_online: number | null;
-    last_seen_at: string | null;
-    created_at: string;
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // === Fetch mosque data ===
+  const { data: mosque, isLoading, error: mosqueError, refetch } = useQuery({
+    queryKey: ['mosque'],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mosques/me`, {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: !!user,
+    retry: 1,
+  });
+
+  // === Fetch devices ===
+  const { data: devices } = useQuery({
+    queryKey: ['devices'],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/devices`, {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch devices');
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  // === Fetch prayer times ===
+  const { data: prayerTimes } = useQuery({
+    queryKey: ['prayer-times'],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prayer-times`, {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch prayer times');
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  // === Fetch adhan settings ===
+  const { data: adhanSettings } = useQuery({
+    queryKey: ['adhan-settings'],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/adhan-settings`, {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch adhan settings');
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  // === WebSocket listeners ===
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('prayer-times:updated', () => {
+      queryClient.invalidateQueries({ queryKey: ['prayer-times'] });
+    });
+
+    socket.on('mosque:updated', () => {
+      queryClient.invalidateQueries({ queryKey: ['mosque'] });
+    });
+
+    socket.on('settings:updated', () => {
+      queryClient.invalidateQueries({ queryKey: ['mosque'] });
+    });
+
+    return () => {
+      socket.off('prayer-times:updated');
+      socket.off('mosque:updated');
+      socket.off('settings:updated');
+    };
+  }, [socket, queryClient]);
+
+  // === Prayer Times Management ===
+  const togglePrayerStatus = async (id: string) => {
+    const prayer = prayerTimes.find((p) => p.id == id);
+    if (!prayer) return;
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prayer-times/${id}/toggle`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ status: prayer.status === 'enabled' ? 'disabled' : 'enabled' }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['prayer-times'] });
+    } catch (error) {
+      console.error('Failed to toggle prayer status:', error);
+    }
+  };
+
+  // === General Settings Management ===
+  const updateGeneralSetting = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/${editingGeneralData.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ value: editingGeneralData.value, status: editingGeneralData.status }),
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      setEditingGeneralModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['mosque'] });
+    } catch (error) {
+      console.error('Failed to update setting:', error);
+    }
+  };
+
+  const editGeneralSetting = async (id: string) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/${id}`, {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch setting');
+      const setting = await res.json();
+      setEditingGeneralData({ id, key: setting.key, value: setting.value, status: setting.status, order: setting.order });
+      setEditingGeneralModalOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch setting:', error);
+    }
+  };
+
+  const toggleGeneralStatus = async (id: string) => {
+    const setting = (mosque?.general_settings || []).find((s) => s.id == id);
+    if (!setting) return;
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/${id}/toggle`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ status: setting.status === 'enabled' ? 'disabled' : 'enabled' }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['mosque'] });
+    } catch (error) {
+      console.error('Failed to toggle setting status:', error);
+    }
+  };
+
+  // === Qibla Direction ===
+  const updateQiblaDirection = async () => {
+    try {
+      const bearing = parseFloat(editingQiblaData.value);
+      if (isNaN(bearing) || bearing < 0 || bearing > 360) {
+        alert('Bearing harus antara 0 dan 360 derajat');
+        return;
+      }
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ key: 'qibla_direction', value: { bearing: parseFloat(editingQiblaData.value), method: '' } }),
+      });
+      if (!res.ok) throw new Error('Failed to update qibla');
+      setEditingQiblaModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['mosque'] });
+    } catch (error) {
+      console.error('Failed to update qibla:', error);
+    }
+  };
+
+  // === Device Management ===
+  const disconnectDevice = async (deviceId: string) => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/devices/${deviceId}/disconnect`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      refetch();
+    } catch (error) {
+      console.error('Failed to disconnect device:', error);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
+
+  // === Modal handlers ===
+  const openPrayerTimeModal = (prayerName: string) => {
+    if (!prayerTimes) return;
+    const prayer = prayerTimes.find((p) => p.name === prayerName);
+    if (!prayer) return;
+    setSelectedPrayer(prayerName);
+    setEditingTimes({ [prayerName]: prayer.time });
+    setTimeModalOpen(true);
+  };
+
+  const savePrayerTime = async () => {
+    const prayer = prayerTimes.find((p) => p.name === selectedPrayer);
+    if (!prayer) return;
+
+    if (editingTimes[selectedPrayer] && editingTimes[selectedPrayer] !== prayer.time) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prayer-times/${prayer.id}/time`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+          body: JSON.stringify({ time: editingTimes[selectedPrayer] }),
+        });
+        setTimeModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: ['prayer-times'] });
+      } catch (error) {
+        console.error('Failed to update prayer time:', error);
+      }
+    } else {
+      setTimeModalOpen(false);
+    }
+  };
+
+  if (!user) {
+    router.push('/login');
+    return null;
   }
 
-  // Tab configuration
-  const tabs = [
-    { id: 'akun', label: 'Akun & Profil', icon: SettingsIcon },
-    { id: 'sinkronisasi', label: 'Sinkronisasi', icon: Database },
-    { id: 'umum', label: 'Tampilan Umum', icon: Globe },
-    { id: 'peralatan', label: 'Peralatan', icon: MonitorCog },
-  ];
-
-  // Load user and mosque data on mount
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        // Get UUID from URL params (QR flow) or localStorage
-        const params = new URLSearchParams(window.location.search);
-        const uuidFromUrl = params.get('mosque'); // UUID from QR URL
-        const uuidFromStorage = localStorage.getItem('mosque_uuid');
-        const uuid = uuidFromUrl || uuidFromStorage || null;
-        if (uuid) setMosqueUuid(uuid);
-        
-        const res = await fetch('/api/auth/me');
-        if (!res.ok) {
-          router.push('/login');
-          return;
-        }
-        const user = await res.json();
-        setUserEmail(user.email);
-        setMosqueId(user.mosque_id);
-        
-        // Load mosque settings
-        if (user.mosque_id) {
-          // Get mosque slug from localStorage (saved during registration)
-          const slug = localStorage.getItem('mosque_slug') || 'masjid-al-ikhlas';
-          const mosqueRes = await fetch(`/api/mosque/settings?slug=${slug}`);
-          if (mosqueRes.ok) {
-            const mosque = await mosqueRes.json();
-            setMosqueName(mosque.name || mosqueName);
-            const settings = mosque.settings || {};
-            setIhror(settings.ihror !== false);
-            setShowMazhab(settings.mazhab !== false);
-            setShowHijriyah(settings.hijri !== false);
-            setShowImsak(!!settings.imsak);
-            setDarkMode(!!settings.dark_mode);
-            setAnimations(settings.animations !== false);
-            setPushNotifications(settings.push_notifications !== false);
-            setLocation(`Lat: ${mosque.lat}, Long: ${mosque.long}`);
-          }
-        }
-
-        // Load devices list
-        await loadDevices();
-      } catch (err) {
-        console.error('Failed to load user data', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadUser();
-  }, []);
-
-  const loadDevices = async () => {
-    try {
-      const res = await fetch('/api/mosque/devices');
-      if (res.ok) {
-        setDevices(await res.json());
-      }
-    } catch (err) {
-      console.error('Failed to load devices', err);
-    }
-  };
-
-  const handleAddDevice = async () => {
-    try {
-      setAddingDevice(true);
-      const res = await fetch('/api/mosque/devices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (res.ok && data.device_uuid) {
-        window.open(`https://app.jadwalmasjid.com/pair?device=${data.device_uuid}`, '_blank');
-        await loadDevices();
-      } else {
-        alert(data.error || 'Gagal menambah device');
-      }
-    } catch (err) {
-      console.error('Failed to add device', err);
-      alert('Terjadi kesalahan');
-    } finally {
-      setAddingDevice(false);
-    }
-  };
-
-  const handleDeleteDevice = async (deviceUuid: string) => {
-    try {
-      const res = await fetch(`/api/mosque/devices/${deviceUuid}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        await loadDevices();
-      } else {
-        alert('Gagal menghapus device');
-      }
-    } catch (err) {
-      console.error('Failed to delete device', err);
-      alert('Terjadi kesalahan');
-    }
-  };
-
-  // Save settings
-  const handleSaveSettings = async () => {
-    if (!mosqueId) return;
-    setSaving(true);
-    setSuccessMessage('');
-    try {
-      const res = await fetch(`/api/settings/${mosqueId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prayer_times: {},
-          ihror,
-          mazhab: showMazhab,
-          hijri: showHijriyah,
-          imsak: showImsak,
-          dark_mode: darkMode,
-          animations,
-          push_notifications: pushNotifications,
-          mosque_uuid: mosqueUuid, // UUID for socket room naming
-        }),
-      });
-      if (res.ok) {
-        setSuccessMessage('Pengaturan berhasil disimpan!');
-        setTimeout(() => setSuccessMessage(''), 3000);
-      } else {
-        alert('Gagal menyimpan pengaturan');
-      }
-    } catch (err) {
-      console.error('Failed to save settings', err);
-      alert('Terjadi kesalahan');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-emerald-100">
-        <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm">Memuat data...</p>
+        </div>
       </div>
     );
   }
 
+  if (mosqueError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="card max-w-sm p-6 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12 mx-auto text-red-400 mb-4"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+          <p className="text-red-400 text-sm">Gagal memuat data masjid</p>
+          <button onClick={() => router.refresh()} className="btn-link mt-2 text-sm">Coba lagi</button>
+        </div>
+      </div>
+    );
+  }
+
+  // === Prayer names mapping ===
+  const prayerNames: Record<string, string> = {
+    subuh: 'Subuh',
+    terbit: 'Syuryuk',
+    dhuhur: 'Dzuhur',
+    ashar: 'Ashar',
+    maghrib: 'Maghrib',
+    isya: 'Isya',
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white py-10 px-4 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-4 mb-2">
-            <img src="/logo.png" alt="Jadwal Masjid" className="w-14 h-14 rounded-full border-2 border-white/30" />
-            <div>
-              <h1 className="text-2xl font-bold">{mosqueName || 'Memuat...'}</h1>
-              <div className="flex items-center gap-2 text-emerald-100">
-                <MapPin className="w-4 h-4" />
-                <span className="text-sm">{location}</span>
-              </div>
+    <div className="min-h-screen flex bg-slate-900">
+      {/* === Sidebar === */}
+      <aside className="w-56 min-h-screen bg-slate-900 border-r border-border flex flex-col">
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M9 17h1M5 21V11l7-10 7 10v10" />
+                <path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6" />
+                <circle cx="12" cy="11" r="2" />
+              </svg>
             </div>
+            <span className="font-bold text-white">Settings</span>
           </div>
-        </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white shadow-md border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="flex gap-1 py-2 overflow-x-auto scrollbar-hide">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
-                    isActive
-                      ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <nav className="space-y-0.5">
+            <NavItem
+              icon={<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.94.54a2 2 0 0 1-2.46-.54l-.28-.48A2 2 0 0 0 3.12 2H2.5a2 2 0 0 0-2 2v14c0 .55.22 1.08.6.88l2.44-1.4a2 2 0 0 1 2.22 0l.94.54a2 2 0 0 1 1 1.73v.18a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.94-.54a2 2 0 0 1 2.46.54l.28.48A2 2 0 0 0 20.88 22h.62a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-.62a2 2 0 0 0-2 2"/></svg>}
+              label="Umum"
+              active={activeSection === 'general'}
+              onClick={() => setActiveSection('general')}
+            />
+            <NavItem
+              icon={<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+              label="Waktu Sholat"
+              active={activeSection === 'prayer-times'}
+              onClick={() => setActiveSection('prayer-times')}
+            />
+            <NavItem
+              icon={<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20"/><path d="M2 12a14.5 14.5 0 0 0 20 0"/></svg>}
+              label="Arah Kiblat"
+              active={activeSection === 'qibla'}
+              onClick={() => setActiveSection('qibla')}
+            />
+            <NavItem
+              icon={<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 8A6 6 0 0 0 6 8c0 7-6 7-6 7"/><path d="M15 8h.01"/><path d="M9 8h.01"/></svg>}
+              label="Adzan"
+              active={activeSection === 'adhans'}
+              onClick={() => setActiveSection('adhans')}
+            />
+            <NavItem
+              icon={<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>}
+              label="Perangkat"
+              active={activeSection === 'devices'}
+              onClick={() => setActiveSection('devices')}
+            />
+          </nav>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {activeTab === 'akun' && (
-          <div className="space-y-6">
-            {/* Akun Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
-                <h2 className="text-lg font-semibold text-slate-800">Informasi Akun</h2>
-              </div>
-              <div className="p-6 space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* User section at bottom */}
+        <div className="mt-auto p-4 border-t border-border">
+          <button onClick={handleLogout} className="btn-ghost w-full text-left text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Keluar
+          </button>
+        </div>
+      </aside>
+
+      {/* === Main Content === */}
+      <main className="flex-1 overflow-y-auto p-8">
+        {/* General Section */}
+        {activeSection === 'general' && (
+          <div className="max-w-2xl space-y-6" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-white mb-1">Pengaturan Umum</h1>
+              <p className="text-muted-foreground">Kelola informasi masjid dan pengaturan dasar</p>
+            </div>
+
+            {/* Mosque Info Card */}
+            <SectionCard title="Informasi Masjid" description="Nama dan lokasi masjid">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Nama Masjid</label>
+                  <input
+                    value={mosque?.name || ''}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Alamat</label>
+                  <input
+                    value={mosque?.address || ''}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    readOnly
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-2">Nama Masjid</label>
+                    <label className="text-sm font-medium text-foreground">Latitude</label>
                     <input
-                      type="text"
-                      value={mosqueName}
-                      onChange={(e) => setMosqueName(e.target.value)}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                      value={mosque?.latitude?.toString() || ''}
+                      className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
+                      readOnly
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-2">Email</label>
+                    <label className="text-sm font-medium text-foreground">Longitude</label>
                     <input
-                      type="email"
-                      value={userEmail}
+                      value={mosque?.longitude?.toString() || ''}
+                      className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
                       readOnly
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Timezone</label>
+                    <input
+                      value={mosque?.timezone || ''}
+                      className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Tasbih method</label>
+                    <input
+                      value={mosque?.fajr_angle?.toString() || ''}
+                      className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* General Settings */}
+            <SectionCard title="Pengaturan" description="Fitur dan tampilan">
+              <div className="space-y-4">
+                {(mosque?.general_settings || []).map((setting) => (
+                  <div key={setting.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-foreground">{setting.key}</span>
+                      {setting.value && <span className="text-muted-foreground text-xs ml-2">({setting.value})</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Toggle
+                        enabled={setting.status === 'enabled'}
+                        onChange={() => toggleGeneralStatus(setting.id)}
+                      />
+                      <button onClick={() => editGeneralSetting(setting.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M11 4.7A2 2 0 0 1 12.7 4h5.1c.98-.02 1.8.72 1.8 1.6 0 .3-.1.6-.25.9l-7.35 10.4a1.3 1.3 0 0 1-1.8.3c-.3-.2-.5-.6-.5-1v-1.8c0-.3.1-.6.3-.8L17.5 5.7h-4.9l-4.6 11.5 4.4-8.8"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
+            {/* Qibla Section */}
+            <SectionCard title="Arah Kiblat" description="Pengaturan arah kiblat untuk TV">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-2">Lokasi</label>
+                  <label className="text-sm font-medium text-foreground">Bearing (derajat)</label>
                   <input
-                    type="text"
-                    value={location}
+                    value={mosque?.qibla_bearing?.toString() || ''}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
                     readOnly
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Metode Hitung</label>
+                  <input
+                    value={mosque?.qibla_method || ''}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    readOnly
+                  />
+                </div>
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {/* Prayer Times Section */}
+        {activeSection === 'prayer-times' && (
+          <div className="max-w-2xl space-y-6" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-white mb-1">Waktu Sholat</h1>
+              <p className="text-muted-foreground">Kelola jadwal waktu sholat untuk display TV</p>
+            </div>
+
+            <SectionCard title="Jadwal Waktu Sholat">
+              <div>
+                {(prayerTimes || []).map((prayer) => (
+                  <PrayerTimeRow
+                    key={prayer.id}
+                    name={prayerNames[prayer.name] || prayer.name}
+                    time={prayer.time}
+                    onEdit={() => openPrayerTimeModal(prayer.name)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {/* Qibla Section */}
+        {activeSection === 'qibla' && (
+          <div className="max-w-2xl space-y-6" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-white mb-1">Arah Kiblat</h1>
+              <p className="text-muted-foreground">Pengaturan arah kiblat untuk TV</p>
+            </div>
+
+            <SectionCard title="Bearing Kiblat">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Bearing (derajat)</label>
+                  <input
+                    value={mosque?.qibla_bearing?.toString() || ''}
+                    onChange={(e) => setEditingQiblaData({ ...editingQiblaData, value: e.target.value })}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
                   />
                 </div>
                 <button
-                  onClick={() => {
-                    document.cookie.split(';').forEach(c => {
-                      document.cookie = c.replace(/=.*/, '; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/');
-                    });
-                    router.push('/login');
-                  }}
-                  className="btn-danger w-full py-4"
+                  onClick={updateQiblaDirection}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg"
                 >
-                  Logout
+                  Simpan
+                </button>
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {/* Adhan Section */}
+        {activeSection === 'adhans' && (
+          <div className="max-w-2xl space-y-6" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-white mb-1">Pengaturan Adzan</h1>
+              <p className="text-muted-foreground">Kelola adzan dan iqomah untuk TV</p>
+            </div>
+
+            <SectionCard title="Pengaturan Adzan">
+              <div className="space-y-4">
+                {(adhanSettings || []).map((setting) => (
+                  <div key={setting.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-foreground">{setting.key}</span>
+                      {setting.value && <span className="text-muted-foreground text-xs ml-2">({setting.value})</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Toggle
+                        enabled={setting.status === 'enabled'}
+                        onChange={() => {}}
+                      />
+                      <button onClick={() => {}} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M11 4.7A2 2 0 0 1 12.7 4h5.1c.98-.02 1.8.72 1.8 1.6 0 .3-.1.6-.25.9l-7.35 10.4a1.3 1.3 0 0 1-1.8.3c-.3-.2-.5-.6-.5-1v-1.8c0-.3.1-.6.3-.8L17.5 5.7h-4.9l-4.6 11.5 4.4-8.8"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {/* Devices Section */}
+        {activeSection === 'devices' && (
+          <div className="max-w-2xl space-y-6" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-white mb-1">Perangkat</h1>
+              <p className="text-muted-foreground">Kelola perangkat TV yang terhubung</p>
+            </div>
+
+            <SectionCard title="Perangkat Terhubung">
+              <div>
+                {(devices || []).map((device) => (
+                  <div key={device.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
+                    <div>
+                      <span className="text-sm font-medium text-foreground">{device.name}</span>
+                      <p className="text-muted-foreground text-xs">ID: {device.device_uuid}</p>
+                    </div>
+                    <button
+                      onClick={() => disconnectDevice(device.id)}
+                      className="btn-ghost text-red-400 text-sm"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12v-6"/><path d="M18 18v-6a2 2 0 0 0-2-2h-2"/></svg>
+                      Putus
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {/* Prayer Time Modal */}
+        {timeModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+            <div className="card max-w-md w-full p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Edit {selectedPrayer}</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Waktu</label>
+                  <input
+                    value={editingTimes[selectedPrayer] || ''}
+                    onChange={(e) => setEditingTimes({ ...editingTimes, [selectedPrayer]: e.target.value })}
+                    type="time"
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => setTimeModalOpen(false)} className="btn-ghost">Batal</button>
+                <button onClick={savePrayerTime} className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg">
+                  Simpan
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'sinkronisasi' && (
-          <div className="space-y-6">
-            {/* Sinkronisasi Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
-                <h2 className="text-lg font-semibold text-slate-800">Sinkronisasi Jadwal</h2>
-              </div>
-              <div className="p-6 space-y-6">
-                {/* Status */}
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <div>
-                    <p className="font-medium text-slate-800">Status Sinkronisasi</p>
-                    <p className="text-sm text-slate-500">Terakhir disinkronkan: Baru saja</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <span className="text-emerald-600 font-medium text-sm">Aktif</span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button className="btn-primary flex items-center justify-center gap-2 py-3 rounded-lg">
-                    <RefreshCw className="w-5 h-5" />
-                    Sinkronkan Sekarang
-                  </button>
-                  <button className="btn-secondary flex items-center justify-center gap-2 py-3 rounded-lg">
-                    <Database className="w-5 h-5" />
-                    Backup Data
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Pengaturan Sholat Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
-                <h2 className="text-lg font-semibold text-slate-800">Pengaturan Sholat</h2>
-              </div>
-              <div className="p-6 space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">Menampilkan Ihror</p>
-                    <p className="text-sm text-slate-500">Tampilkan adzan Ihror di halaman</p>
-                  </div>
-                  <button
-                    onClick={() => setIhror(!ihror)}
-                    className={`w-12 h-7 rounded-full transition-colors ${ihror ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${ihror ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">Menampilkan Mazhab</p>
-                    <p className="text-sm text-slate-500">Tampilkan informasi Mazhab</p>
-                  </div>
-                  <button
-                    onClick={() => setShowMazhab(!showMazhab)}
-                    className={`w-12 h-7 rounded-full transition-colors ${showMazhab ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${showMazhab ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">Menampilkan Kalender Hijriyah</p>
-                    <p className="text-sm text-slate-500">Tampilkan tanggal Hijriyah</p>
-                  </div>
-                  <button
-                    onClick={() => setShowHijriyah(!showHijriyah)}
-                    className={`w-12 h-7 rounded-full transition-colors ${showHijriyah ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${showHijriyah ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">Menampilkan Waktu Imsak</p>
-                    <p className="text-sm text-slate-500">Tampilkan waktu Imsak</p>
-                  </div>
-                  <button
-                    onClick={() => setShowImsak(!showImsak)}
-                    className={`w-12 h-7 rounded-full transition-colors ${showImsak ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${showImsak ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleSaveSettings}
-                  disabled={saving}
-                  className="btn-primary flex items-center justify-center gap-2 py-3 rounded-lg"
-                >
-                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                  {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
-                </button>
-                {successMessage && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm font-medium text-center">
-                    {successMessage}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'umum' && (
-          <div className="space-y-6">
-            {/* Tampilan Umum Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
-                <h2 className="text-lg font-semibold text-slate-800">Pengaturan Tampilan</h2>
-              </div>
-              <div className="p-6 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">Mode Gelap</p>
-                    <p className="text-sm text-slate-500">Aktifkan mode gelap untuk tampilan yang lebih nyaman</p>
-                  </div>
-                  <button
-                    onClick={() => setDarkMode(!darkMode)}
-                    className={`w-12 h-7 rounded-full transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">Animasi Transisi</p>
-                    <p className="text-sm text-slate-500">Tampilkan animasi saat berpindah halaman</p>
-                  </div>
-                  <button
-                    onClick={() => setAnimations(!animations)}
-                    className={`w-12 h-7 rounded-full transition-colors ${animations ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${animations ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">Notifikasi Push</p>
-                    <p className="text-sm text-slate-500">Kirim notifikasi untuk waktu sholat</p>
-                  </div>
-                  <button
-                    onClick={() => setPushNotifications(!pushNotifications)}
-                    className={`w-12 h-7 rounded-full transition-colors ${pushNotifications ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${pushNotifications ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleSaveSettings}
-                  disabled={saving}
-                  className="btn-primary flex items-center justify-center gap-2 py-3 rounded-lg w-full"
-                >
-                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                  {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
-                </button>
-                {successMessage && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm font-medium text-center">
-                    {successMessage}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'peralatan' && (
-          <div className="space-y-6">
-            {/* Devices Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-slate-800">Peralatan TV</h2>
-                  <button
-                    onClick={handleAddDevice}
-                    disabled={addingDevice}
-                    className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg"
-                  >
-                    <MonitorCog className="w-5 h-5" />
-                    {addingDevice ? 'Memuat...' : 'Tambah TV'}
-                  </button>
-                </div>
-              </div>
-              <div className="p-6">
-                {devices.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
-                    <MonitorX className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                    <p className="font-medium">Belum ada TV terdaftar</p>
-                    <p className="text-sm">Klik "Tambah TV" untuk mendaftarkan TV baru</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {devices.map((device) => (
-                      <div key={device.device_id} className="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${device.is_online === 1 ? 'bg-green-100' : 'bg-slate-200'}`}>
-                              <MonitorX className={`w-5 h-5 ${device.is_online === 1 ? 'text-green-600' : 'text-slate-400'}`} />
-                            </div>
-                            <div>
-                              <p className="font-medium text-slate-800">{device.name}</p>
-                              <p className="text-xs text-slate-500">
-                                {device.is_online === 1 ? '✅ Online' : '❌ Offline'}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteDevice(device.device_id)}
-                            className="text-red-400 hover:text-red-600 p-1"
-                            title="Hapus TV"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                        {device.last_seen_at && (
-                          <p className="text-xs text-slate-400">
-                            Terakhir: {new Date(device.last_seen_at).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'long',
-                              year: 'numeric'
-                            })}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
+        <style>{`
+          @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        `}</style>
+      </main>
     </div>
   );
 }

@@ -2,48 +2,129 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .btn-primary {
-    @apply bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm font-semibold rounded-lg py-3 px-4 transition-colors;
+/* === Landing Page Theme (Dark Navy + Emerald) === */
+:root {
+  --background: #0A192F;
+  --foreground: #F1F5F9;
+  --card: #0f172a;
+  --card-foreground: #F1F5F9;
+  --popover: #0f172a;
+  --popover-foreground: #F1F5F9;
+  --primary: #10B981;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1e293b;
+  --secondary-foreground: #F1F5F9;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  --accent: #10B981;
+  --accent-foreground: #FFFFFF;
+  --destructive: #ef4444;
+  --destructive-foreground: #F1F5F9;
+  --border: #334155;
+  --input: #334155;
+  --ring: #10B981;
+  --chart-1: #10B981;
+  --chart-2: #F59E0B;
+  --chart-3: #3b82f6;
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
+  --radius: 0.5rem;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #10B981;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #F1F5F9;
+  --sidebar-border: #334155;
+  --sidebar-ring: #10B981;
+}
+
+/* === Base Styles === */
+@layer base {
+  * {
+    @apply border-border;
   }
-  .btn-secondary {
-    @apply bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 rounded-lg py-3 px-4 transition-colors;
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', sans-serif;
   }
-  .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 shadow-sm font-semibold rounded-lg py-3 px-4 transition-colors;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', sans-serif;
   }
 }
 
-@layer base {
-  :root {
-    --background: #ffffff;
-    --foreground: #0f172a;
+/* === UI Components === */
+@layer components {
+  /* Buttons */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/80 shadow-sm font-semibold rounded-lg px-4 py-3 transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border rounded-lg px-4 py-3 transition-colors;
+  }
+  .btn-ghost {
+    @apply hover:bg-muted hover:text-foreground transition-colors rounded-lg px-3 py-2;
+  }
+  .btn-outline {
+    @apply border border-border bg-transparent hover:bg-muted text-foreground rounded-lg px-4 py-3 transition-colors;
+  }
+  .btn-danger {
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/80 font-semibold rounded-lg px-4 py-3 transition-colors;
+  }
+  .btn-link {
+    @apply text-primary hover:text-primary/80 underline-offset-4 hover:underline font-medium transition-colors;
+  }
 
-    --card: #ffffff;
-    --card-foreground: #0f172a;
+  /* Cards */
+  .card {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-sm;
+  }
+  .card-header {
+    @apply rounded-t-xl px-4 py-3 border-b border-border;
+  }
+  .card-content {
+    @apply p-6;
+  }
+  .card-footer {
+    @apply rounded-b-xl border-t border-border bg-muted/20 px-4 py-3;
+  }
 
-    --popover: #ffffff;
-    --popover-foreground: #0f172a;
+  /* Inputs */
+  .input {
+    @apply flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors;
+  }
 
-    --primary: #0f172a;
-    --primary-foreground: #f8fafc;
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center rounded-full border border-transparent px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+  .badge-emerald {
+    @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30;
+  }
+  .badge-green {
+    @apply bg-green-500/20 text-green-400 border-green-500/30;
+  }
+  .badge-red {
+    @apply bg-red-500/20 text-red-400 border-red-500/30;
+  }
+  .badge-amber {
+    @apply bg-amber-500/20 text-amber-400 border-amber-500/30;
+  }
+}
 
-    --secondary: #f1f5f9;
-    --secondary-foreground: #0f172a;
-
-    --muted: #f1f5f9;
-    --muted-foreground: #64748b;
-
-    --accent: #f1f5f9;
-    --accent-foreground: #0f172a;
-
-    --destructive: #ef4444;
-    --destructive-foreground: #f8fafc;
-
-    --border: #e2e8f0;
-    --input: #e2e8f0;
-    --ring: #0f172a;
-
-    --radius: 0.5rem;
+/* === Form Toggle Switch === */
+@layer components {
+  .toggle {
+    @apply relative h-7 w-12 rounded-full bg-muted cursor-pointer transition-colors duration-200;
+  }
+  .toggle:checked {
+    @apply bg-primary;
+  }
+  .toggle::after {
+    content: '';
+    @apply absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200;
+  }
+  .toggle:checked::after {
+    @apply translate-x-5;
   }
 }

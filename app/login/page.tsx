@@ -1,149 +1,154 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
+import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
-
-const formSchema = z.object({
-  email: z.string().email('Email tidak valid'),
-  password: z.string().min(6, 'Password minimal 6 karakter'),
-});
 
 export default function LoginPage() {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
-    resolver: zodResolver(formSchema),
-  });
+  const { login } = useAuth();
   const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [focused, setFocused] = useState<{email: boolean, password: boolean}>({
+    email: false,
+    password: false,
+  });
 
-  const onSubmit = async (data: any) => {
-    setErrorMessage('');
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await res.json();
-      if (!res.ok) {
-        setErrorMessage(result.error || 'Login gagal');
-        return;
-      }
-      // Set role cookie client-side (not httpOnly so middleware can read it)
-      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      document.cookie = `role=${result.role}; path=/; expires=${expires.toUTCString()}; SameSite=lax`;
-      // Store mosque_uuid and slug in localStorage
-      if (result.mosque_uuid) {
-        localStorage.setItem('mosque_uuid', result.mosque_uuid);
-      }
-      if (result.mosque_id) {
-        localStorage.setItem('mosque_id', result.mosque_id);
-      }
-      router.push(result.role === 'superadmin' ? '/admin' : '/settings');
-    } catch (err) {
-      setErrorMessage('Terjadi kesalahan. Coba lagi.');
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    
+    if (res.ok && data.user) {
+      login(data.user, data.token);
+      const redirect = searchParams.get('redirect') || '/settings';
+      router.push(redirect);
+    } else {
+      setError(data.error || 'Login failed');
     }
+    setLoading(false);
   };
 
+  const labelClass = (field: keyof typeof focused) => 
+    `absolute left-3 transition-all duration-200 pointer-events-none ${
+      focused[field] || (field === 'email' ? email.length > 0 : password.length > 0)
+        ? '-top-2.5 text-xs bg-slate-900 px-1 text-muted-foreground'
+        : 'top-3 text-muted-foreground text-sm'
+    }`;
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-800 p-4 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-300/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-emerald-200/30 rounded-full blur-2xl animate-pulse delay-500"></div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950" />
+      <div className="absolute inset-0 opacity-10"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 25% 25%, #10B981 0%, transparent 50%), radial-gradient(circle at 75% 75%, #10B981 0%, transparent 50%)',
+        }} />
+      
+      {/* Floating orbs */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-      <div className="w-full max-w-md relative z-10">
-        {/* Logo / Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full shadow-lg mb-6 border border-white/30 transform hover:scale-105 transition-transform duration-300">
-            <img src="/logo.png" alt="Jadwal Masjid" className="w-12 h-12" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-3 tracking-tight drop-shadow-lg">Jadwal Masjid</h1>
-          <p className="text-emerald-100 text-lg font-medium">Masuk ke akun masjid Anda</p>
-        </div>
-
-        {/* Login Card */}
-        <div className="card p-8 card-shadow backdrop-blur-sm bg-white/95 border border-white/20 rounded-2xl">
-          {errorMessage && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm font-medium">
-              {errorMessage}
-            </div>
-          )}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Email Field */}
-            <div>
-              <Label className="text-slate-700 font-semibold text-sm">Email</Label>
-              <div className="relative mt-2">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-400" />
-                </div>
-                <Input
-                  {...register('email')}
-                  placeholder="email@example.com"
-                  className="pl-12 text-base py-4"
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-2 text-sm text-red-500 font-medium">{errors.email.message}</p>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <Label className="text-slate-700 font-semibold text-sm">Password</Label>
-              <div className="relative mt-2">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
-                </div>
-                <Input
-                  {...register('password')}
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  className="pl-12 pr-12 py-4 text-base"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-2 text-sm text-red-500 font-medium">{errors.password.message}</p>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <Button className="w-full btn-primary py-4 text-lg font-semibold" disabled={isSubmitting}>
-              {isSubmitting ? 'Memproses...' : 'Masuk'}
-            </Button>
-          </form>
-
-          {/* Footer Links */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-slate-600">
-              Belum terdaftar?{' '}
-              <a href="/register" className="text-emerald-600 font-semibold hover:text-emerald-700 transition-colors">
-                Daftar masjid baru
-              </a>
-            </p>
+      <div className="w-full max-w-md p-8 relative z-10">
+      {/* Logo */}
+      <div className="flex flex-col items-center mb-8" style={{ animation: 'fadeSlideUp 0.5s ease-out' }}>
+        <div className="relative w-16 h-16 mb-4">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 21h18M9 17h1M5 21V11l7-10 7 10v10" />
+              <path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6" />
+              <circle cx="12" cy="11" r="2" />
+            </svg>
           </div>
         </div>
+        <h1 className="text-2xl font-bold text-white mb-1">Jadwal Masjid</h1>
+        <p className="text-muted-foreground text-sm text-center">Masuk ke akun masjid Anda</p>
       </div>
+
+      {/* Login Form */}
+      <form onSubmit={onSubmit} className="space-y-5" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.2s both' }}>
+        {/* Email */}
+        <div className="relative">
+          <Label htmlFor="email" className={labelClass('email')}>
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onFocus={() => setFocused({ ...focused, email: true })}
+            onBlur={() => setFocused({ ...focused, email: false })}
+            className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0 placeholder:text-muted-foreground"
+            placeholder="admin@masjid.com"
+          />
+        </div>
+
+        {/* Password */}
+        <div className="relative">
+          <Label htmlFor="password" className={labelClass('password')}>
+            Password
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onFocus={() => setFocused({ ...focused, password: true })}
+            onBlur={() => setFocused({ ...focused, password: false })}
+            className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0 placeholder:text-muted-foreground"
+            placeholder="••••••••"
+          />
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/80 shadow-lg shadow-primary/30 px-4 py-3 text-base font-semibold"
+        >
+          {loading ? 'Memproses...' : 'Masuk'}
+        </button>
+      </form>
+
+      {/* Back to Home */}
+      <div className="mt-8 text-center" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.4s both' }}>
+        <button
+          onClick={() => router.push('/')}
+          className="btn-link text-muted-foreground hover:text-emerald-400 transition-colors"
+        >
+          ← Kembali ke Beranda
+        </button>
+      </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

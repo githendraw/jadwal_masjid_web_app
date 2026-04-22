@@ -1,278 +1,450 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Building2, TrendingUp, CheckCircle, XCircle, Monitor } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useQuery } from '@tanstack/react-query';
 
-interface MosqueData {
-  settings?: Record<string, any>;
-  mosque_slug?: string;
-  is_active?: number;
-  is_online?: number;
-  mosque_uuid?: string;
-}
-
-interface Tenant {
+interface AdminUser {
   id: number;
   email: string;
-  mosque_id: number | null;
-  mosque_name: string | null;
-  settings: MosqueData | null;
-  is_active: number | null;
-  is_online: number | null;
-  mosque_slug?: string;
-  mosque_uuid?: string;
-}
-
-interface Device {
-  device_id: string;
   name: string;
-  is_active: number | null;
-  is_online: number | null;
-  last_seen_at: string | null;
-  created_at: string;
+  role: 'superadmin' | 'admin' | 'owner' | 'user';
+  status: string;
+  mosque_id: number | null;
 }
 
-export default function AdminPage() {
+export default function AdminDashboard() {
+  const { user, logout } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [stats, setStats] = useState<{
-    total_mosques: number;
-    active_tenants: number;
-    online_count: number;
-    total_devices_online: number;
-  } | null>(null);
-  const [devices, setDevices] = useState<Record<string, Device[]>>({});
+  const [showModal, setShowModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [form, setForm] = useState({ email: '', name: '', password: '', role: 'user' as 'superadmin' | 'admin' | 'owner' | 'user', mosque_id: '' });
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('');
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        // Fetch overview stats
-        const statsRes = await fetch('/api/admin/overview');
-        if (!statsRes.ok) {
-          if (statsRes.status === 403) {
-            router.push('/settings'); // Not superadmin
-            return;
-          }
-        }
-        const statsData = await statsRes.json();
-        setStats(statsData);
+  const { data: users, isLoading, error } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      return res.json();
+    },
+    enabled: !!user && user.role === 'superadmin',
+    retry: 1,
+  });
 
-        // Fetch all tenants
-        const tenantsRes = await fetch('/api/admin/mosques');
-        if (tenantsRes.ok) {
-          const data = await tenantsRes.json();
-          setTenants(data);
+  const filteredUsers = (users || []).filter((u: AdminUser) => {
+    const matchesSearch = !searchQuery || u.email.toLowerCase().includes(searchQuery.toLowerCase()) || u.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = !filterRole || u.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
 
-          // Fetch devices for each mosque
-          const devicePromises = data.map(async (tenant: Tenant) => {
-            try {
-              const slug = tenant.mosque_slug || tenant.mosque_name?.toLowerCase().replace(/\s+/g, '-');
-              const devicesRes = await fetch(`/api/admin/mosque/${slug}/devices`);
-              if (devicesRes.ok) {
-                const deviceData = await devicesRes.json();
-                return { [slug as any]: deviceData };
-              }
-            } catch (err) {
-              console.error('Failed to fetch devices for', tenant.mosque_slug);
-            }
-            return {};
-          });
-
-          const deviceResults = await Promise.all(devicePromises);
-          const combinedDevices = deviceResults.reduce((acc, curr) => ({ ...acc, ...curr }), {});
-          setDevices(combinedDevices);
-        }
-      } catch (err) {
-        console.error('Failed to load admin data', err);
-      } finally {
-        setLoading(false);
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create user');
       }
+      setShowCreateModal(false);
+      setForm({ email: '', name: '', password: '', role: 'user' as const, mosque_id: '' });
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
     }
-    loadData();
-  }, [router]);
+    setLoading(false);
+  };
 
-  if (loading) {
+  const handleToggleStatus = async (userId: number) => {
+    try {
+      const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}`, {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      const userData = await userRes.json();
+      const newStatus = userData.status === 'active' ? 'disabled' : 'active';
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}/toggle-status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error('Failed to toggle status');
+      window.location.reload();
+    } catch (err) {
+      alert('Failed to toggle status');
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ name: editingUser.name, role: editingUser.role, mosque_id: editingUser.mosque_id }),
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      setShowModal(false);
+      setEditingUser(null);
+      window.location.reload();
+    } catch (err) {
+      alert('Failed to update user');
+    }
+    setLoading(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
+
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
+  if (user.role !== 'superadmin') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-emerald-100">
-        <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="card max-w-sm p-6 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12 mx-auto text-red-400 mb-4"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+          <p className="text-red-400 text-sm">Akses ditolak — hanya Super Admin</p>
+          <button onClick={handleLogout} className="btn-link mt-2 text-sm">Keluar</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm">Memuat data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="card max-w-sm p-6 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12 mx-auto text-red-400 mb-4"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+          <p className="text-red-400 text-sm">Gagal memuat data pengguna</p>
+          <button onClick={() => router.refresh()} className="btn-link mt-2 text-sm">Coba lagi</button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white py-10 px-4 shadow-lg">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-2">
-            <img src="/logo.png" alt="Jadwal Masjid" className="w-14 h-14 rounded-full border-2 border-white/30" />
-            <div>
-              <h1 className="text-2xl font-bold">Dashboard Superadmin</h1>
-              <p className="text-emerald-100 text-sm">Manajemen semua tenant (masjid)</p>
+    <div className="min-h-screen flex bg-slate-900">
+      {/* Sidebar */}
+      <aside className="w-56 min-h-screen bg-slate-900 border-r border-border flex flex-col">
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M9 17h1M5 21V11l7-10 7 10v10" />
+                <path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6" />
+                <circle cx="12" cy="11" r="2" />
+              </svg>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-100 rounded-lg">
-                <Building2 className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Total Masjid</p>
-                <p className="text-2xl font-bold text-slate-800">{stats?.total_mosques || 0}</p>
-              </div>
-            </div>
+            <span className="font-bold text-white">Admin</span>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Tenant Aktif</p>
-                <p className="text-2xl font-bold text-slate-800">{stats?.active_tenants || 0}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Online</p>
-                <p className="text-2xl font-bold text-slate-800">{stats?.online_count || 0}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Monitor className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">TV Online</p>
-                <p className="text-2xl font-bold text-slate-800">{stats?.total_devices_online || 0}</p>
-              </div>
-            </div>
-          </div>
+          <nav className="space-y-0.5">
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-500/15 text-emerald-400">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Pengguna
+            </button>
+          </nav>
         </div>
 
-        {/* Tenant List */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-800">Daftar Tenant (Masjid)</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-6 py-3 text-sm font-medium text-slate-600">Nama Masjid</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-slate-600">Email User</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-slate-600">TV</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-slate-600">Status</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-slate-600">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tenants.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                      Belum ada tenant terdaftar
-                    </td>
-                  </tr>
-                ) : (
-                  tenants.map((tenant) => {
-                    const slug = tenant.mosque_slug || tenant.mosque_name?.toLowerCase().replace(/\s+/g, '-');
-                    const deviceList = devices[slug as any] || [];
-                    const deviceCount = deviceList.length;
-                    const onlineDeviceCount = deviceList.filter((d: Device) => d.is_online === 1).length;
-
-                    return (
-                      <tr key={tenant.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-medium text-slate-800">
-                          {tenant.mosque_name || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {tenant.email}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <Monitor className="w-4 h-4 text-purple-500" />
-                            <span className="text-sm text-slate-600">
-                              {deviceCount} device
-                              {onlineDeviceCount > 0 && (
-                                <span className="ml-1 text-green-500 text-xs">({onlineDeviceCount} online)</span>
-                              )}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            {tenant.is_active !== null && tenant.is_active === 1 ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                                <CheckCircle className="w-3 h-3" /> Aktif
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                                <XCircle className="w-3 h-3" /> Tidak Aktif
-                              </span>
-                            )}
-                            {tenant.is_online !== null && tenant.is_online === 1 ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                <CheckCircle className="w-3 h-3" /> Online
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
-                                <XCircle className="w-3 h-3" /> Offline
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => router.push(`/settings?mosque=${slug}`)}
-                              className="btn-primary px-3 py-1 text-sm rounded-lg"
-                            >
-                              Settings
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Logout Button */}
-        <div className="mt-6">
-          <button
-            onClick={() => {
-              document.cookie.split(';').forEach(c => {
-                document.cookie = c.replace(/=.*/, '; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/');
-              });
-              router.push('/login');
-            }}
-            className="btn-danger w-full py-4"
-          >
-            Logout
+        <div className="mt-auto p-4 border-t border-border">
+          <button onClick={handleLogout} className="btn-ghost w-full text-left text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Keluar
           </button>
         </div>
-      </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-4xl">
+          {/* Header */}
+          <div className="mb-8 flex items-center justify-between" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-1">Dashboard Admin</h1>
+              <p className="text-muted-foreground">Kelola pengguna, role, dan masjid</p>
+            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/80 shadow-lg shadow-primary/30 px-4 py-2.5 text-sm font-semibold"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+              Tambah Pengguna
+            </button>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4 mb-6" style={{ animation: 'fadeSlideUp 0.3s ease-out 0.1s both' }}>
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-sm">Total Pengguna</p>
+                  <p className="text-2xl font-bold text-white">{users?.length || 0}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-emerald-400"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                </div>
+              </div>
+            </div>
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-sm">Akun Aktif</p>
+                  <p className="text-2xl font-bold text-white">{(users || []).filter((u: AdminUser) => u.status === 'active').length}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-green-400"><path d="M22 11.04V12a4 4 0 0 1-4.12 3.8"/><path d="M16.17 2.94a6 6 0 0 0-3.68-.89"/><path d="M12 12a4 4 0 0 0-4 4"/><circle cx="12" cy="12" r="10"/></svg>
+                </div>
+              </div>
+            </div>
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-sm">Super Admin</p>
+                  <p className="text-2xl font-bold text-white">{(users || []).filter((u: AdminUser) => u.role === 'superadmin').length}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-amber-400"><path d="M12 22s8-4 8-10"/><path d="M2 12a10 10 0 0 1 20 0"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Search + Filter */}
+          <div className="flex gap-3 mb-6" style={{ animation: 'fadeSlideUp 0.3s ease-out 0.2s both' }}>
+            <div className="flex-1">
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input bg-slate-800/50 border-slate-700 text-white placeholder:text-muted-foreground"
+                placeholder="Cari email atau nama..."
+              />
+            </div>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="input bg-slate-800/50 border-slate-700 text-white w-36"
+            >
+              <option value="">Semua Role</option>
+              <option value="superadmin">Super Admin</option>
+              <option value="admin">Admin</option>
+              <option value="owner">Owner</option>
+              <option value="user">User</option>
+            </select>
+          </div>
+
+          {/* Users Table */}
+          <div className="card" style={{ animation: 'fadeSlideUp 0.3s ease-out 0.3s both' }}>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Nama</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Email</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Role</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Status</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((u: AdminUser) => (
+                    <tr key={u.id} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                      <td className="px-4 py-3 text-sm text-foreground">{u.name}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{u.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`badge ${
+                          u.role === 'superadmin' ? 'badge-amber' :
+                          u.role === 'admin' ? 'badge-emerald' :
+                          u.role === 'owner' ? 'badge-green' :
+                          'badge-amber'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1.5 text-xs ${
+                          u.status === 'active' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${u.status === 'active' ? 'bg-green-400' : 'bg-red-400'}`} />
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => { setEditingUser(u); setShowModal(true); }}
+                            className="btn-ghost"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M11 4.7A2 2 0 0 1 12.7 4h5.1c.98-.02 1.8.72 1.8 1.6 0 .3-.1.6-.25.9l-7.35 10.4a1.3 1.3 0 0 1-1.8.3c-.3-.2-.5-.6-.5-1v-1.8c0-.3.1-.6.3-.8L17.5 5.7h-4.9l-4.6 11.5 4.4-8.8"/></svg>
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(u.id)}
+                            className="btn-ghost text-red-400"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path d="M18 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12v-6"/><path d="M18 18v-6a2 2 0 0 0-2-2h-2"/></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Modal */}
+        {showModal && editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+            <div className="card max-w-md w-full p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Edit Pengguna</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Nama</label>
+                  <input
+                    value={editingUser.name}
+                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Email</label>
+                  <input
+                    value={editingUser.email}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Role</label>
+                  <select
+                    value={editingUser.role}
+                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AdminUser['role'] })}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                  >
+                    <option value="superadmin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="owner">Owner</option>
+                    <option value="user">User</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => { setShowModal(false); setEditingUser(null); }} className="btn-ghost">Batal</button>
+                <button onClick={handleSaveEdit} disabled={loading} className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg">
+                  {loading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+            <div className="card max-w-md w-full p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Tambah Pengguna Baru</h2>
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Nama</label>
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    placeholder="Nama lengkap"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Email</label>
+                  <input
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    type="email"
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Password</label>
+                  <input
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    type="password"
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Role</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value as AdminUser['role'] })}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                  >
+                    <option value="superadmin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="owner">Owner</option>
+                    <option value="user">User</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Mosque ID (opsional)</label>
+                  <input
+                    value={form.mosque_id}
+                    onChange={(e) => setForm({ ...form, mosque_id: e.target.value })}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                    placeholder="Kosongkan untuk admin global"
+                  />
+                </div>
+              </form>
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => setShowCreateModal(false)} className="btn-ghost">Batal</button>
+                <button onClick={handleCreateUser} disabled={loading} className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg">
+                  {loading ? 'Menyimpan...' : 'Buat Pengguna'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        `}</style>
+      </main>
     </div>
   );
 }
