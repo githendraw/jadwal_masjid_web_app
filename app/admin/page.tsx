@@ -194,7 +194,7 @@ export default function AdminPage() {
                 ) : (
                   tenants.map((tenant) => {
                     const slug = tenant.mosque_slug || tenant.mosque_name?.toLowerCase().replace(/\s+/g, '-');
-                    const deviceList = devices[slug] || [];
+                    const deviceList = devices[slug as any] || [];
                     const deviceCount = deviceList.length;
                     const onlineDeviceCount = deviceList.filter((d: Device) => d.is_online === 1).length;
 
