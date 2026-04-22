@@ -74,7 +74,7 @@ export default function SettingsPage() {
     { id: 'akun', label: 'Akun & Profil', icon: SettingsIcon },
     { id: 'sinkronisasi', label: 'Sinkronisasi', icon: Database },
     { id: 'umum', label: 'Tampilan Umum', icon: Globe },
-    { id: 'peralatan', label: 'Peralatan', icon: MonitorPlus },
+    { id: 'peralatan', label: 'Peralatan', icon: MonitorCog },
   ];
 
   // Load user and mosque data on mount
