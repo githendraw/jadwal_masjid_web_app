@@ -16,6 +16,9 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  MonitorPlus,
+  MonitorX,
+  Trash2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -54,12 +57,24 @@ export default function SettingsPage() {
   const [mosqueId, setMosqueId] = useState<number | null>(null);
   const [mosqueUuid, setMosqueUuid] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [addingDevice, setAddingDevice] = useState(false);
+
+  interface Device {
+    device_id: string;
+    name: string;
+    is_active: number | null;
+    is_online: number | null;
+    last_seen_at: string | null;
+    created_at: string;
+  }
 
   // Tab configuration
   const tabs = [
     { id: 'akun', label: 'Akun & Profil', icon: SettingsIcon },
     { id: 'sinkronisasi', label: 'Sinkronisasi', icon: Database },
     { id: 'umum', label: 'Tampilan Umum', icon: Globe },
+    { id: 'peralatan', label: 'Peralatan', icon: MonitorPlus },
   ];
 
   // Load user and mosque data on mount
@@ -101,6 +116,9 @@ export default function SettingsPage() {
             setLocation(`Lat: ${mosque.lat}, Long: ${mosque.long}`);
           }
         }
+
+        // Load devices list
+        await loadDevices();
       } catch (err) {
         console.error('Failed to load user data', err);
       } finally {
@@ -109,6 +127,55 @@ export default function SettingsPage() {
     }
     loadUser();
   }, []);
+
+  const loadDevices = async () => {
+    try {
+      const res = await fetch('/api/mosque/devices');
+      if (res.ok) {
+        setDevices(await res.json());
+      }
+    } catch (err) {
+      console.error('Failed to load devices', err);
+    }
+  };
+
+  const handleAddDevice = async () => {
+    try {
+      setAddingDevice(true);
+      const res = await fetch('/api/mosque/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.device_uuid) {
+        window.open(`https://app.jadwalmasjid.com/pair?device=${data.device_uuid}`, '_blank');
+        await loadDevices();
+      } else {
+        alert(data.error || 'Gagal menambah device');
+      }
+    } catch (err) {
+      console.error('Failed to add device', err);
+      alert('Terjadi kesalahan');
+    } finally {
+      setAddingDevice(false);
+    }
+  };
+
+  const handleDeleteDevice = async (deviceUuid: string) => {
+    try {
+      const res = await fetch(`/api/mosque/devices/${deviceUuid}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        await loadDevices();
+      } else {
+        alert('Gagal menghapus device');
+      }
+    } catch (err) {
+      console.error('Failed to delete device', err);
+      alert('Terjadi kesalahan');
+    }
+  };
 
   // Save settings
   const handleSaveSettings = async () => {
@@ -426,6 +493,73 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+
+        {activeTab === 'peralatan' && (
+          <div className="space-y-6">
+            {/* Devices Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-800">Peralatan TV</h2>
+                  <button
+                    onClick={handleAddDevice}
+                    disabled={addingDevice}
+                    className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg"
+                  >
+                    <MonitorPlus className="w-5 h-5" />
+                    {addingDevice ? 'Memuat...' : 'Tambah TV'}
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                {devices.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">
+                    <MonitorX className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                    <p className="font-medium">Belum ada TV terdaftar</p>
+                    <p className="text-sm">Klik "Tambah TV" untuk mendaftarkan TV baru</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {devices.map((device) => (
+                      <div key={device.device_id} className="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${device.is_online === 1 ? 'bg-green-100' : 'bg-slate-200'}`}>
+                              <MonitorX className={`w-5 h-5 ${device.is_online === 1 ? 'text-green-600' : 'text-slate-400'}`} />
+                            </div>
+                            <div>
+                              <p className="font-medium text-slate-800">{device.name}</p>
+                              <p className="text-xs text-slate-500">
+                                {device.is_online === 1 ? '✅ Online' : '❌ Offline'}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteDevice(device.device_id)}
+                            className="text-red-400 hover:text-red-600 p-1"
+                            title="Hapus TV"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {device.last_seen_at && (
+                          <p className="text-xs text-slate-400">
+                            Terakhir: {new Date(device.last_seen_at).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

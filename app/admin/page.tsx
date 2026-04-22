@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Users, Building2, TrendingUp, CheckCircle, XCircle, Monitor, Plus, Trash2, QrCode } from 'lucide-react';
+import { Loader2, Building2, TrendingUp, CheckCircle, XCircle, Monitor } from 'lucide-react';
 
 interface MosqueData {
   settings?: Record<string, any>;
@@ -44,8 +44,6 @@ export default function AdminPage() {
     total_devices_online: number;
   } | null>(null);
   const [devices, setDevices] = useState<Record<string, Device[]>>({});
-  const [addingDevice, setAddingDevice] = useState<string | null>(null);
-  const [showDevices, setShowDevices] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -94,52 +92,6 @@ export default function AdminPage() {
     }
     loadData();
   }, [router]);
-
-  const handleAddDevice = async (mosqueId: number) => {
-    try {
-      setAddingDevice(mosqueId);
-      const res = await fetch('/api/admin/devices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mosque_id: mosqueId, name: 'TV Baru' }),
-      });
-      const data = await res.json();
-      if (res.ok && data.qr_url) {
-        // Open QR modal or redirect
-        window.open(`https://app.jadwalmasjid.com/pair?device=${data.device_uuid}`, '_blank');
-        // Refresh devices
-        const slug = tenants.find(t => t.mosque_id === mosqueId)?.mosque_slug;
-        if (slug) {
-          const devicesRes = await fetch(`/api/admin/mosque/${slug}/devices`);
-          if (devicesRes.ok) {
-            setDevices(prev => ({ ...prev, [slug]: await devicesRes.json() }));
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to add device', err);
-    } finally {
-      setAddingDevice(null);
-    }
-  };
-
-  const handleDeleteDevice = async (deviceUuid: string) => {
-    try {
-      await fetch(`/api/admin/devices/${deviceUuid}`, {
-        method: 'DELETE',
-      });
-      // Refresh devices
-      const slug = showDevices;
-      if (slug) {
-        const devicesRes = await fetch(`/api/admin/mosque/${slug}/devices`);
-        if (devicesRes.ok) {
-          setDevices(prev => ({ ...prev, [slug]: await devicesRes.json() }));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to delete device', err);
-    }
-  };
 
   if (loading) {
     return (
@@ -263,12 +215,6 @@ export default function AdminPage() {
                                 <span className="ml-1 text-green-500 text-xs">({onlineDeviceCount} online)</span>
                               )}
                             </span>
-                            <button
-                              onClick={() => setShowDevices(showDevices === slug ? null : slug)}
-                              className="text-xs text-blue-500 hover:text-blue-700"
-                            >
-                              {showDevices === slug ? '▼' : '▶'} Lihat
-                            </button>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -301,14 +247,6 @@ export default function AdminPage() {
                             >
                               Settings
                             </button>
-                            <button
-                              onClick={() => handleAddDevice(tenant.mosque_id!)}
-                              className="btn-secondary px-3 py-1 text-sm rounded-lg flex items-center gap-1"
-                              disabled={addingDevice === tenant.mosque_id}
-                            >
-                              <Plus className="w-4 h-4" />
-                              {addingDevice === tenant.mosque_id ? '...' : 'Tambah'}
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -316,44 +254,7 @@ export default function AdminPage() {
                   })
                 )}
               </tbody>
-            </table>
-          </div>
-
-          {/* Devices Detail Section */}
-          {showDevices && devices[showDevices] && devices[showDevices].length > 0 && (
-            <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                Device untuk {showDevices}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {(devices[showDevices] as Device[]).map((device) => (
-                  <div key={device.device_id} className="bg-white rounded-lg border border-slate-200 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{device.name}</p>
-                        <p className="text-xs text-slate-500">
-                          {device.is_online === 1 ? '✅ Online' : '❌ Offline'}
-                          {device.last_seen_at && (
-                            <span className="ml-2 text-slate-400">Terakhir: {new Date(device.last_seen_at).toLocaleDateString('id-ID')}</span>
-                          )}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteDevice(device.device_id)}
-                        className="text-red-400 hover:text-red-600"
-                        title="Hapus device"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="mt-2 text-xs text-slate-400">
-                      {device.device_id}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        </div>
         </div>
 
         {/* Logout Button */}
