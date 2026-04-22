@@ -16,7 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
-  MonitorPlus,
+  MonitorCog,
   MonitorX,
   Trash2,
 } from 'lucide-react';
