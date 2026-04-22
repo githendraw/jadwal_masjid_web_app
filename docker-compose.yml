@@ -1,0 +1,23 @@
+services:
+  settings:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - BACKEND_URL=http://backend-app:3001
+    ports:
+      - "4000:3000"
+    networks:
+      - default
+      - backend_default
+    extra_hosts:
+      - "backend-app:172.20.0.3"
+
+networks:
+  backend_default:
+    external: true
+    name: backend_default
+  default:
