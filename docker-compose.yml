@@ -3,13 +3,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: jadwal_masjid_web_app-settings
     restart: always
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - BACKEND_URL=http://172.17.0.2:3001
+      - BACKEND_URL=https://api.jadwalmasjid.com
+      - NEXT_PUBLIC_API_URL=https://api.jadwalmasjid.com
     ports:
       - "4000:3000"
+    networks:
+      - app-network
 
 networks:
-  default:
+  app-network:
+    driver: bridge

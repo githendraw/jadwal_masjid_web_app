@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: unknown }> {
   state = { hasError: false, error: null };
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: unknown) {
     return { hasError: true, error };
   }
   render() {
@@ -17,7 +17,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-900 p-8">
           <div className="text-center space-y-4">
-            <p className="text-red-400 text-sm">Error: {this.state.error?.message}</p>
+            <p className="text-red-400 text-sm">Error: {String(this.state.error)}</p>
             <button
               onClick={() => window.location.reload()}
               className="text-emerald-400 underline"
