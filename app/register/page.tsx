@@ -24,15 +24,15 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [pairingToken, setPairingToken] = useState('');
-  const [mosqueId, setMosqueId] = useState<string | null>(null);
+  const [deviceUuid, setDeviceUuid] = useState('');
 
-  // Read token & mosque from URL params (QR scan flow)
+  // Read token & device from URL params (QR scan flow)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
-    const mosque = params.get('mosque');
+    const device = params.get('device');
     if (token) setPairingToken(token);
-    if (mosque) setMosqueId(mosque);
+    if (device) setDeviceUuid(device);
   }, []);
 
   const onSubmit = async (data: any) => {
@@ -45,7 +45,7 @@ export default function RegisterPage() {
           email: data.email,
           password: data.password,
           mosque_name: data.mosqueName || null, // Send mosque name
-          mosque_id: mosqueId, // Use mosque ID from QR URL params
+          device_uuid: deviceUuid, // Register this TV as a device
         }),
       });
       const result = await res.json();
@@ -53,14 +53,19 @@ export default function RegisterPage() {
         setErrorMessage(result.error || 'Pendaftaran gagal');
         return;
       }
+      // Store mosque info from backend response
+      if (result.mosque_id) {
+        localStorage.setItem('mosque_id', result.mosque_id);
+      }
+      if (result.mosque_uuid) {
+        localStorage.setItem('mosque_uuid', result.mosque_uuid); // UUID for socket room naming
+      }
+      if (data.mosqueName) {
+        localStorage.setItem('mosque_slug', data.mosqueName.toLowerCase().replace(/\s+/g, '-'));
+      }
       // Store pairing token in localStorage for TV app
       if (pairingToken) {
         localStorage.setItem('pairing_token', pairingToken);
-      }
-      if (mosqueId) {
-        localStorage.setItem('mosque_id', mosqueId);
-        localStorage.setItem('mosque_uuid', mosqueId); // UUID for socket room naming
-        localStorage.setItem('mosque_slug', data.mosqueName?.toLowerCase().replace(/\s+/g, '-') || '');
       }
       router.push('/login');
     } catch (err) {
