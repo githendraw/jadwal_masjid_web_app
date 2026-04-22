@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { authenticateToken } from '@/lib/auth-middleware';
+import { emitConfigUpdate } from '@/lib/socket-emit';
 
 export async function PUT(req: NextRequest) {
   const user = authenticateToken(req);
@@ -16,6 +17,9 @@ export async function PUT(req: NextRequest) {
     }
     settings[key] = value;
     await pool.execute('UPDATE mosques SET settings = ? WHERE id = ?', [JSON.stringify(settings), user.mosque_id]);
+
+    await emitConfigUpdate(user.mosque_id);
+
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

@@ -9,18 +9,32 @@ export async function GET(req: NextRequest) {
   }
   try {
     const [rows]: any = await pool.execute(
-      'SELECT id, name, mosque_slug as slug, settings, lat, `long`, calculation_method, is_online, is_active FROM mosques WHERE id = ?',
+      'SELECT id, name, address, mosque_slug as slug, settings, lat, `long`, calculation_method, is_online, is_active FROM mosques WHERE id = ?',
       [user.mosque_id]
     );
     if (!rows || !rows.length) {
       return NextResponse.json({ error: 'Mosque not found' }, { status: 404 });
     }
     const mosque = rows[0];
-    mosque.settings = typeof mosque.settings === 'string' ? JSON.parse(mosque.settings) : mosque.settings || {};
+    const settings = typeof mosque.settings === 'string' ? JSON.parse(mosque.settings) : mosque.settings || {};
+
+    const general_settings = Object.entries(settings)
+      .filter(([key]) => !['pengumumanJumat', 'pengumumanKajian', 'location', 'qibla_direction'].includes(key))
+      .map(([key, val]: [string, any]) => {
+        if (val && typeof val === 'object') {
+          return { id: key, key, value: val.value || '', status: val.status || 'disabled', order: val.order || 0 };
+        }
+        return { id: key, key, value: String(val), status: 'enabled', order: 0 };
+      });
+
     return NextResponse.json({
       ...mosque,
-      general_settings: [],
-      qibla_direction: mosque.settings?.qibla_direction || { bearing: 0, method: '' },
+      latitude: mosque.lat,
+      longitude: mosque.long,
+      general_settings,
+      pengumumanJumat: settings.pengumumanJumat || '',
+      pengumumanKajian: settings.pengumumanKajian || '',
+      qibla_direction: settings.qibla_direction || { bearing: 0, method: '' },
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

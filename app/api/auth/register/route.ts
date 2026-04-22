@@ -14,18 +14,23 @@ export async function POST(req: NextRequest) {
       const [existing]: any = await pool.execute('SELECT id, mosque_uuid FROM mosques WHERE mosque_slug = ?', [slug]);
       if (!existing || !(existing as any[]).length) {
         const newMosqueUuid = crypto.randomUUID();
+        const defaultSettings = JSON.stringify({
+          pengumumanJumat: 'SALDO KAS MASJID - TERIMAKASIH',
+          pengumumanKajian: 'BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI',
+          location: '',
+        });
         try {
           const [newMosque] = await pool.execute(
-            'INSERT INTO mosques (name, mosque_slug, mosque_uuid, settings) VALUES (?, ?, ?, ?)',
-            [mosque_name, slug, newMosqueUuid, JSON.stringify({})]
+            'INSERT INTO mosques (name, mosque_slug, mosque_uuid, settings, calculation_method) VALUES (?, ?, ?, ?, ?)',
+            [mosque_name, slug, newMosqueUuid, defaultSettings, 'KEMENAG']
           );
           finalMosqueId = (newMosque as any).insertId;
           finalMosqueUuid = newMosqueUuid;
         } catch (err: any) {
           console.warn('mosque_uuid column not found, using fallback:', err.message);
           const [newMosque] = await pool.execute(
-            'INSERT INTO mosques (name, mosque_slug, settings) VALUES (?, ?, ?)',
-            [mosque_name, slug, JSON.stringify({})]
+            'INSERT INTO mosques (name, mosque_slug, settings, calculation_method) VALUES (?, ?, ?, ?)',
+            [mosque_name, slug, defaultSettings, 'KEMENAG']
           );
           finalMosqueId = (newMosque as any).insertId;
         }
@@ -35,14 +40,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (device_uuid) {
+    if (device_uuid && finalMosqueId) {
       try {
         await pool.execute(
           'INSERT INTO devices (id, mosque_id, name) VALUES (?, ?, ?)',
           [device_uuid, finalMosqueId, 'Device']
         );
       } catch (err: any) {
-        console.warn('Device table not found:', err.message);
+        console.warn('Device insert failed:', err.message);
       }
     }
 

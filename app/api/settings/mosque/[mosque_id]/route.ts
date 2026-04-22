@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { authenticateToken } from '@/lib/auth-middleware';
+import { emitConfigUpdate } from '@/lib/socket-emit';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ mosque_id: string }> }) {
   const user = authenticateToken(req);
@@ -9,7 +10,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ mosq
   }
 
   const { mosque_id } = await params;
-  const { prayer_times, ihror, mazhab, hijri, imsak, dark_mode, animations, push_notifications, mosque_uuid } = await req.json();
+  const { prayer_times, ihror, mazhab, hijri, imsak, dark_mode, animations, push_notifications } = await req.json();
 
   try {
     const settings: any = { prayer_times, ihror, mazhab, hijri, imsak };
@@ -21,6 +22,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ mosq
       'UPDATE mosques SET settings = ? WHERE id = ?',
       [JSON.stringify(settings), mosque_id]
     );
+
+    await emitConfigUpdate(Number(mosque_id));
 
     return NextResponse.json({ success: true });
   } catch (err) {

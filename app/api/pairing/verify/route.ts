@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
     }
 
     const [rows]: any = await pool.execute(
-      `SELECT pc.*, m.name as mosque_name, m.mosque_uuid, m.settings
+      `SELECT pc.*, m.name as mosque_name, m.mosque_uuid, m.settings,
+              m.lat, m.long, m.calculation_method, m.address
        FROM pairing_codes pc
        JOIN mosques m ON pc.mosque_id = m.id
        WHERE pc.code = ?`,
@@ -53,9 +54,9 @@ export async function POST(request: NextRequest) {
       [device_uuid, code]
     );
 
-    const settings = typeof pairing.settings === 'string' 
+    const dbSettings = typeof pairing.settings === 'string' 
       ? JSON.parse(pairing.settings) 
-      : pairing.settings;
+      : pairing.settings || {};
 
     return NextResponse.json({
       success: true,
@@ -63,7 +64,15 @@ export async function POST(request: NextRequest) {
       mosque_uuid: pairing.mosque_uuid,
       mosque_id: pairing.mosque_id,
       mosque_name: pairing.mosque_name,
-      settings
+      settings: {
+        mosqueName: pairing.mosque_name,
+        location: pairing.address || dbSettings.location || '',
+        pengumumanJumat: dbSettings.pengumumanJumat || '',
+        pengumumanKajian: dbSettings.pengumumanKajian || '',
+        lat: pairing.lat,
+        long: pairing.long,
+        calculationMethod: pairing.calculation_method || 'KEMENAG',
+      },
     });
   } catch (error) {
     console.error('Error verifying pairing code:', error);

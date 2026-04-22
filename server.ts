@@ -3,6 +3,10 @@ import { Server } from 'socket.io';
 import next from 'next';
 import pool from './lib/db';
 
+declare global {
+  var io: Server | undefined;
+}
+
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
 const port = parseInt(process.env.PORT || '4000', 10);
@@ -22,6 +26,8 @@ app.prepare().then(() => {
     },
   });
 
+  globalThis.io = io;
+
   io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id);
 
@@ -33,6 +39,7 @@ app.prepare().then(() => {
       if (deviceUuid) {
         socket.data.device_uuid = deviceUuid;
         socket.data.mosque_uuid = mosqueUuid;
+        pool.execute('UPDATE devices SET is_online = 1, last_seen_at = NOW() WHERE id = ?', [deviceUuid]).catch(() => {});
       }
     });
 
