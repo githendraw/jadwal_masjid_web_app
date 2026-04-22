@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Building2, Mail, Lock } from 'lucide-react';
 
 const formSchema = z.object({
   mosqueName: z.string().min(3, 'Nama masjid minimal 3 karakter'),
@@ -17,7 +17,7 @@ const formSchema = z.object({
 });
 
 export default function RegisterPage() {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(formSchema),
   });
   const router = useRouter();
@@ -25,8 +25,8 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [pairingToken, setPairingToken] = useState('');
   const [deviceUuid, setDeviceUuid] = useState('');
+  const [focused, setFocused] = useState({ mosqueName: false, email: false, password: false });
 
-  // Read token & device from URL params (QR scan flow)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
@@ -44,8 +44,8 @@ export default function RegisterPage() {
         body: JSON.stringify({
           email: data.email,
           password: data.password,
-          mosque_name: data.mosqueName || null, // Send mosque name
-          device_uuid: deviceUuid, // Register this TV as a device
+          mosque_name: data.mosqueName || null,
+          device_uuid: deviceUuid,
         }),
       });
       const result = await res.json();
@@ -53,17 +53,15 @@ export default function RegisterPage() {
         setErrorMessage(result.error || 'Pendaftaran gagal');
         return;
       }
-      // Store mosque info from backend response
       if (result.mosque_id) {
         localStorage.setItem('mosque_id', result.mosque_id);
       }
       if (result.mosque_uuid) {
-        localStorage.setItem('mosque_uuid', result.mosque_uuid); // UUID for socket room naming
+        localStorage.setItem('mosque_uuid', result.mosque_uuid);
       }
       if (data.mosqueName) {
         localStorage.setItem('mosque_slug', data.mosqueName.toLowerCase().replace(/\s+/g, '-'));
       }
-      // Store pairing token in localStorage for TV app
       if (pairingToken) {
         localStorage.setItem('pairing_token', pairingToken);
       }
@@ -72,6 +70,13 @@ export default function RegisterPage() {
       setErrorMessage('Terjadi kesalahan. Coba lagi.');
     }
   };
+
+  const labelClass = (field: keyof typeof focused, hasValue: boolean = false) =>
+    `absolute left-3 transition-all duration-200 pointer-events-none ${
+      focused[field] || hasValue
+        ? '-top-2.5 text-xs bg-slate-900 px-1 text-muted-foreground'
+        : 'top-3 text-muted-foreground text-sm'
+    }`;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
@@ -103,13 +108,15 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.2s both' }}>
           {/* Mosque Name */}
           <div className="relative">
-            <Label htmlFor="mosqueName" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
+            <Label htmlFor="mosqueName" className={labelClass('mosqueName')}>
               Nama Masjid
             </Label>
             <Input
               id="mosqueName"
               type="text"
               {...register('mosqueName')}
+              onFocus={() => setFocused({ ...focused, mosqueName: true })}
+              onBlur={() => setFocused({ ...focused, mosqueName: false })}
               className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0"
               placeholder="Masjid Al-Ikhlas"
             />
@@ -120,13 +127,15 @@ export default function RegisterPage() {
 
           {/* Email */}
           <div className="relative">
-            <Label htmlFor="email" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
+            <Label htmlFor="email" className={labelClass('email')}>
               Email
             </Label>
             <Input
               id="email"
               type="email"
               {...register('email')}
+              onFocus={() => setFocused({ ...focused, email: true })}
+              onBlur={() => setFocused({ ...focused, email: false })}
               className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0"
               placeholder="email@example.com"
             />
@@ -137,13 +146,15 @@ export default function RegisterPage() {
 
           {/* Password */}
           <div className="relative">
-            <Label htmlFor="password" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
+            <Label htmlFor="password" className={labelClass('password')}>
               Password
             </Label>
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
               {...register('password')}
+              onFocus={() => setFocused({ ...focused, password: true })}
+              onBlur={() => setFocused({ ...focused, password: false })}
               className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0 pr-12"
               placeholder="••••••••"
             />
