@@ -47,10 +47,16 @@ export default function PairPage() {
         return;
       }
 
+      const loginData = await loginRes.json();
+      const token = loginData.token;
+
       // Then pair the device
       const pairRes = await fetch('/api/auth/pair', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ device_uuid: deviceUuid }),
       });
       if (!pairRes.ok) {
