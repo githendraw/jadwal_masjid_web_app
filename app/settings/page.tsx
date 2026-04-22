@@ -354,6 +354,11 @@ export default function SettingsPage() {
     return null;
   }
 
+  if (user.role === 'superadmin') {
+    router.push('/admin');
+    return null;
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">

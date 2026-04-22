@@ -61,7 +61,7 @@ function LoginForm() {
 
       if (res.ok && data.token) {
         login({ email, role: data.role, name: email.split('@')[0] }, data.token);
-        const redirect = searchParams.get('redirect') || '/settings';
+        const redirect = searchParams.get('redirect') || (data.role === 'superadmin' ? '/admin' : '/settings');
         router.push(redirect);
       } else {
         setError(data.error || 'Login failed');

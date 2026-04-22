@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('');
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'mosques'>('mosques');
 
   const { data: users, isLoading, error } = useQuery({
     queryKey: ['admin-users'],
@@ -33,6 +34,19 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch users');
+      return res.json();
+    },
+    enabled: !!user && user.role === 'superadmin',
+    retry: 1,
+  });
+
+  const { data: mosques } = useQuery({
+    queryKey: ['admin-mosques'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/mosques', {
+        headers: { 'Authorization': `Bearer ${user?.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch mosques');
       return res.json();
     },
     enabled: !!user && user.role === 'superadmin',
@@ -167,7 +181,25 @@ export default function AdminDashboard() {
           </div>
 
           <nav className="space-y-0.5">
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-500/15 text-emerald-400">
+            <button
+              onClick={() => setActiveTab('mosques')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'mosques'
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M3 21h18M9 17h1M5 21V11l7-10 7 10v10"/></svg>
+              Masjid
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'users'
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               Pengguna
             </button>
@@ -188,20 +220,28 @@ export default function AdminDashboard() {
           {/* Header */}
           <div className="mb-8 flex items-center justify-between" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
             <div>
-              <h1 className="text-2xl font-bold text-white mb-1">Dashboard Admin</h1>
-              <p className="text-muted-foreground">Kelola pengguna, role, dan masjid</p>
+              <h1 className="text-2xl font-bold text-white mb-1">
+                {activeTab === 'mosques' ? 'Kelola Masjid' : 'Kelola Pengguna'}
+              </h1>
+              <p className="text-muted-foreground">
+                {activeTab === 'mosques' ? 'Lihat dan kelola semua masjid' : 'Kelola pengguna dan role'}
+              </p>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/80 shadow-lg shadow-primary/30 px-4 py-2.5 text-sm font-semibold"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-              Tambah Pengguna
-            </button>
+            {activeTab === 'users' && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/80 shadow-lg shadow-primary/30 px-4 py-2.5 text-sm font-semibold"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                Tambah Pengguna
+              </button>
+            )}
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-6" style={{ animation: 'fadeSlideUp 0.3s ease-out 0.1s both' }}>
+          {activeTab === 'users' && (
+            <>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-6" style={{ animation: 'fadeSlideUp 0.3s ease-out 0.1s both' }}>
             <div className="card p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -318,7 +358,94 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
-        </div>
+            </>
+          )}
+          </div>
+
+          {/* Mosques Tab */}
+          {activeTab === 'mosques' && (
+            <>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-6" style={{ animation: 'fadeSlideUp 0.3s ease-out 0.1s both' }}>
+                <div className="card p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-muted-foreground text-sm">Total Masjid</p>
+                      <p className="text-2xl font-bold text-white">{mosques?.length || 0}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-emerald-400"><path d="M3 21h18M9 17h1M5 21V11l7-10 7 10v10"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="card p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-muted-foreground text-sm">Masjid Aktif</p>
+                      <p className="text-2xl font-bold text-white">{(mosques || []).filter((m: any) => m.is_active).length}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-green-400"><path d="M22 11.04V12a4 4 0 0 1-4.12 3.8"/><path d="M16.17 2.94a6 6 0 0 0-3.68-.89"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="card p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-muted-foreground text-sm">TV Online</p>
+                      <p className="text-2xl font-bold text-white">{(mosques || []).filter((m: any) => m.is_online).length}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-blue-400"><circle cx="12" cy="12" r="2"/></svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mosques Table */}
+              <div className="card" style={{ animation: 'fadeSlideUp 0.3s ease-out 0.3s both' }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Nama Masjid</th>
+                        <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Slug</th>
+                        <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">Status</th>
+                        <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 uppercase tracking-wider">TV Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(mosques || []).map((m: any) => (
+                        <tr key={m.mosque_id || m.id} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                          <td className="px-4 py-3 text-sm text-foreground font-medium">{m.mosque_name || m.name || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{m.mosque_slug || '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 text-xs ${m.is_active ? 'text-green-400' : 'text-red-400'}`}>
+                              <span className={`w-2 h-2 rounded-full ${m.is_active ? 'bg-green-400' : 'bg-red-400'}`} />
+                              {m.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 text-xs ${m.is_online ? 'text-blue-400' : 'text-slate-500'}`}>
+                              <span className={`w-2 h-2 rounded-full ${m.is_online ? 'bg-blue-400 animate-pulse' : 'bg-slate-500'}`} />
+                              {m.is_online ? 'Online' : 'Offline'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!mosques || mosques.length === 0) && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                            Belum ada masjid
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
 
         {/* Edit Modal */}
         {showModal && editingUser && (
