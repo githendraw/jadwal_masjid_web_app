@@ -254,7 +254,8 @@ export default function AdminPage() {
                   })
                 )}
               </tbody>
-        </div>
+            </table>
+          </div>
         </div>
 
         {/* Logout Button */}
