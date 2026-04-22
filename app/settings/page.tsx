@@ -110,6 +110,9 @@ export default function SettingsPage() {
   const [editingAdhanData, setEditingAdhanData] = useState({ id: '', key: '', value: '', status: 'disabled', order: 0 });
   const [editingDevicesModalOpen, setEditingDevicesModalOpen] = useState(false);
   const [editingDevicesData, setEditingDevicesData] = useState({ id: '', name: '', status: 'disabled', order: 0 });
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingExpiry, setPairingExpiry] = useState<string | null>(null);
+  const [pairingModalOpen, setPairingModalOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -278,10 +281,35 @@ export default function SettingsPage() {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
     } catch (error) {
       console.error('Failed to disconnect device:', error);
     }
+  };
+
+  const generatePairingCode = async () => {
+    try {
+      const res = await fetch('/api/pairing/generate', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token}` 
+        },
+      });
+      if (!res.ok) throw new Error('Failed to generate');
+      const data = await res.json();
+      setPairingCode(data.code);
+      setPairingExpiry(data.expires_at);
+      setPairingModalOpen(true);
+    } catch (error) {
+      console.error('Failed to generate pairing code:', error);
+    }
+  };
+
+  const closePairingModal = () => {
+    setPairingModalOpen(false);
+    setPairingCode(null);
+    setPairingExpiry(null);
   };
 
   const handleLogout = () => {
@@ -624,13 +652,19 @@ export default function SettingsPage() {
               <p className="text-muted-foreground">Kelola perangkat TV yang terhubung</p>
             </div>
 
-            <SectionCard title="Perangkat Terhubung">
-              <div>
+            <SectionCard title="TV yang Terhubung">
+              <div className="space-y-4">
                 {(devices || []).map((device: any) => (
                   <div key={device.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
-                    <div>
-                      <span className="text-sm font-medium text-foreground">{device.name}</span>
-                      <p className="text-muted-foreground text-xs">ID: {device.device_uuid}</p>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${device.is_online ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                      <div>
+                        <span className="text-sm font-medium text-foreground">{device.name}</span>
+                        <p className="text-muted-foreground text-xs">
+                          {device.is_online ? 'Online' : 'Offline'}
+                          {device.last_seen_at && !device.is_online ? ` - Terakhir: ${new Date(device.last_seen_at).toLocaleString('id-ID')}` : ''}
+                        </p>
+                      </div>
                     </div>
                     <button
                       onClick={() => disconnectDevice(device.id)}
@@ -641,8 +675,57 @@ export default function SettingsPage() {
                     </button>
                   </div>
                 ))}
+                {(!devices || devices.length === 0) && (
+                  <p className="text-muted-foreground text-sm text-center py-4">Belum ada TV yang terhubung</p>
+                )}
+              </div>
+              <div className="mt-4 pt-4 border-t border-border">
+                <button
+                  onClick={generatePairingCode}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+                  Tambah TV Baru
+                </button>
               </div>
             </SectionCard>
+          </div>
+        )}
+
+        {/* Pairing Code Modal */}
+        {pairingModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+            <div className="card max-w-sm w-full p-6 text-center">
+              <h2 className="text-lg font-semibold text-white mb-2">Kode Pairing TV</h2>
+              <p className="text-muted-foreground text-sm mb-6">Masukkan kode ini di TV Anda</p>
+              
+              <div className="bg-slate-800 rounded-xl p-6 mb-6">
+                <div className="text-4xl font-bold tracking-widest text-emerald-400 font-mono">
+                  {pairingCode?.slice(0, 3)} {pairingCode?.slice(3)}
+                </div>
+              </div>
+              
+              <p className="text-muted-foreground text-xs mb-6">
+                Kode berlaku selama 10 menit
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={closePairingModal}
+                  className="flex-1 btn-ghost"
+                >
+                  Tutup
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(pairingCode || '');
+                  }}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg"
+                >
+                  Salin
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
