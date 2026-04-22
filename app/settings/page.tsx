@@ -41,7 +41,7 @@ interface MosqueData {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'akun' | 'sinkronisasi' | 'umum'>('akun');
+  const [activeTab, setActiveTab] = useState<'akun' | 'sinkronisasi' | 'umum' | 'peralatan'>('akun');
   const [ihror, setIhror] = useState(true);
   const [showMazhab, setShowMazhab] = useState(true);
   const [showHijriyah, setShowHijriyah] = useState(true);
