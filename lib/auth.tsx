@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 export interface AuthUser {
   id?: number;
@@ -26,6 +26,22 @@ const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('auth_user');
+    const storedToken = localStorage.getItem('auth_token');
+    if (storedUser && storedToken) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser({ ...parsed, token: storedToken });
+      } catch {
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
+      }
+    }
+    setIsHydrated(true);
+  }, []);
 
   const login = useCallback((u: AuthUser, token: string) => {
     const userData = { ...u, token };
@@ -39,6 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
   }, []);
+
+  if (!isHydrated) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
