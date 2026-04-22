@@ -72,7 +72,7 @@ export default function AdminPage() {
               const devicesRes = await fetch(`/api/admin/mosque/${slug}/devices`);
               if (devicesRes.ok) {
                 const deviceData = await devicesRes.json();
-                return { [slug]: deviceData };
+                return { [slug as any]: deviceData };
               }
             } catch (err) {
               console.error('Failed to fetch devices for', tenant.mosque_slug);
