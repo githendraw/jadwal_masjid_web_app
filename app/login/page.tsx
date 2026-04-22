@@ -7,6 +7,31 @@ import { useAuth } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+class ErrorBoundary extends React.Component {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 p-8">
+          <div className="text-center space-y-4">
+            <p className="text-red-400 text-sm">Error: {this.state.error?.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-emerald-400 underline"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
@@ -25,19 +50,23 @@ function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    
-    if (res.ok && data.user) {
-      login(data.user, data.token);
-      const redirect = searchParams.get('redirect') || '/settings';
-      router.push(redirect);
-    } else {
-      setError(data.error || 'Login failed');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.user) {
+        login(data.user, data.token);
+        const redirect = searchParams.get('redirect') || '/settings';
+        router.push(redirect);
+      } else {
+        setError(data.error || 'Login failed');
+      }
+    } catch (e) {
+      setError('Network error - check API URL');
     }
     setLoading(false);
   };
@@ -161,7 +190,9 @@ export default function LoginPage() {
         <p className="text-muted-foreground text-sm">Memuat...</p>
       </div>
     </div>}>
-      <LoginForm />
+      <ErrorBoundary>
+        <LoginForm />
+      </ErrorBoundary>
     </Suspense>
   );
 }
