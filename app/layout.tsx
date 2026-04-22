@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import './globals.css';
 import { ReactQueryClientProvider } from '@/lib/providers';
+import { AuthProvider } from '@/lib/auth';
+import { SocketProvider } from '@/lib/socket';
 import { Plus_Jakarta_Sans, Sora } from 'next/font/google';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -26,7 +28,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="id" className={`${jakarta.variable} ${sora.variable}`}>
       <body className="bg-background text-foreground font-sans antialiased">
-        <ReactQueryClientProvider>{children}</ReactQueryClientProvider>
+        <ReactQueryClientProvider>
+          <AuthProvider>
+            <SocketProvider>{children}</SocketProvider>
+          </AuthProvider>
+        </ReactQueryClientProvider>
       </body>
     </html>
   );

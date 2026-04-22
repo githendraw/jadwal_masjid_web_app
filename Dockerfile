@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies including @radix-ui/react-label
+RUN npm ci && npm install @radix-ui/react-label
 
 # Copy all files
 COPY . .

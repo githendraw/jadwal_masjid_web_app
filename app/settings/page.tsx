@@ -191,7 +191,7 @@ export default function SettingsPage() {
 
   // === Prayer Times Management ===
   const togglePrayerStatus = async (id: string) => {
-    const prayer = prayerTimes.find((p) => p.id == id);
+    const prayer = prayerTimes.find((p: typeof prayerTimes[number]) => p.id == id);
     if (!prayer) return;
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prayer-times/${id}/toggle`, {
@@ -236,7 +236,7 @@ export default function SettingsPage() {
   };
 
   const toggleGeneralStatus = async (id: string) => {
-    const setting = (mosque?.general_settings || []).find((s) => s.id == id);
+    const setting = (mosque?.general_settings || []).find((s: any) => s.id == id);
     if (!setting) return;
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/${id}/toggle`, {
@@ -292,7 +292,7 @@ export default function SettingsPage() {
   // === Modal handlers ===
   const openPrayerTimeModal = (prayerName: string) => {
     if (!prayerTimes) return;
-    const prayer = prayerTimes.find((p) => p.name === prayerName);
+    const prayer = prayerTimes.find((p: any) => p.name === prayerName);
     if (!prayer) return;
     setSelectedPrayer(prayerName);
     setEditingTimes({ [prayerName]: prayer.time });
@@ -300,7 +300,7 @@ export default function SettingsPage() {
   };
 
   const savePrayerTime = async () => {
-    const prayer = prayerTimes.find((p) => p.name === selectedPrayer);
+    const prayer = prayerTimes.find((p: any) => p.name === selectedPrayer);
     if (!prayer) return;
 
     if (editingTimes[selectedPrayer] && editingTimes[selectedPrayer] !== prayer.time) {
@@ -488,7 +488,7 @@ export default function SettingsPage() {
             {/* General Settings */}
             <SectionCard title="Pengaturan" description="Fitur dan tampilan">
               <div className="space-y-4">
-                {(mosque?.general_settings || []).map((setting) => (
+                {(mosque?.general_settings || []).map((setting: any) => (
                   <div key={setting.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
                     <div className="flex-1">
                       <span className="text-sm font-medium text-foreground">{setting.key}</span>
@@ -542,7 +542,7 @@ export default function SettingsPage() {
 
             <SectionCard title="Jadwal Waktu Sholat">
               <div>
-                {(prayerTimes || []).map((prayer) => (
+                {(prayerTimes || []).map((prayer: any) => (
                   <PrayerTimeRow
                     key={prayer.id}
                     name={prayerNames[prayer.name] || prayer.name}
@@ -594,7 +594,7 @@ export default function SettingsPage() {
 
             <SectionCard title="Pengaturan Adzan">
               <div className="space-y-4">
-                {(adhanSettings || []).map((setting) => (
+                {(adhanSettings || []).map((setting: any) => (
                   <div key={setting.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
                     <div className="flex-1">
                       <span className="text-sm font-medium text-foreground">{setting.key}</span>
@@ -626,7 +626,7 @@ export default function SettingsPage() {
 
             <SectionCard title="Perangkat Terhubung">
               <div>
-                {(devices || []).map((device) => (
+                {(devices || []).map((device: any) => (
                   <div key={device.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0">
                     <div>
                       <span className="text-sm font-medium text-foreground">{device.name}</span>

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function LoginPage() {
+function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -150,5 +150,18 @@ export default function LoginPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-muted-foreground text-sm">Memuat...</p>
+      </div>
+    </div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

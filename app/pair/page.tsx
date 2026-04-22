@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function PairingPage() {
+function PairingForm() {
   const [code, setCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -117,5 +117,18 @@ export default function PairingPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function PairingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-muted-foreground text-sm">Memuat...</p>
+      </div>
+    </div>}>
+      <PairingForm />
+    </Suspense>
   );
 }

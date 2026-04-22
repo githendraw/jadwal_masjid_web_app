@@ -9,7 +9,7 @@ function Label({
 }: React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>) {
   return (
     <LabelPrimitive.Root
-      className={'text-sm font-medium text-foreground transition-colors peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ' + className}
+      className={['text-sm font-medium transition-colors peer-disabled:cursor-not-allowed peer-disabled:opacity-70', className].join(' ')}
       {...props}
     />
   );
