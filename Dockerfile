@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies including @radix-ui/react-label
-RUN npm ci && npm install @radix-ui/react-label
+# Install dependencies including @radix-ui/react-label and ts-node for custom server
+RUN npm ci && npm install @radix-ui/react-label ts-node
 
 # Copy all files
 COPY . .
@@ -33,7 +33,8 @@ COPY --from=builder /app/globals.css ./globals.css
 COPY --from=builder /app/app ./app
 COPY --from=builder /app/components ./components
 COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/server.ts ./server.ts
 
-EXPOSE 3000
+EXPOSE 4000
 
-CMD ["npm", "start"]
+CMD ["sh", "-c", "npm run start"]

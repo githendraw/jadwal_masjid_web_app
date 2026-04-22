@@ -1,20 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+import pool from '@/lib/db';
+import { authenticateToken, requireSuperAdmin } from '@/lib/auth-middleware';
 
 export async function GET(req: NextRequest) {
-  const token = req.cookies.get('token')?.value;
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = authenticateToken(req);
+  const superadminError = requireSuperAdmin(user);
+  if (superadminError) return superadminError;
+
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/overview`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const [stats]: any = await pool.execute(`
+      SELECT
+        COUNT(m.id) as total_mosques,
+        COUNT(CASE WHEN m.is_active = 1 THEN 1 END) as active_tenants,
+        COUNT(CASE WHEN m.is_online = 1 THEN 1 END) as online_count,
+        COUNT(DISTINCT CASE WHEN m.is_active = 1 THEN m.id END) as active_mosques,
+        (SELECT COUNT(*) FROM devices WHERE is_online = 1) as total_devices_online
+      FROM mosques m
+    `);
+    return NextResponse.json(stats[0] || { total_mosques: 0, active_tenants: 0, online_count: 0, total_devices_online: 0 });
   } catch (err) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

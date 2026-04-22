@@ -2,18 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { authenticateToken, requireSuperAdmin } from '@/lib/auth-middleware';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const user = authenticateToken(req);
   const superadminError = requireSuperAdmin(user);
   if (superadminError) return superadminError;
 
+  const { slug } = await params;
   try {
-    const [rows]: any = await pool.execute(`
-      SELECT u.id, u.email, u.mosque_id, m.name as mosque_name, m.settings, m.is_online, m.is_active, m.mosque_slug, m.mosque_uuid
-      FROM users u LEFT JOIN mosques m ON u.mosque_id = m.id
-      ORDER BY m.name
-    `);
-    return NextResponse.json(rows);
+    const [rows]: any = await pool.execute('SELECT * FROM mosques WHERE mosque_slug = ?', [slug]);
+    return NextResponse.json(rows[0]);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

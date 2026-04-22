@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
 interface SocketContextValue {
-  socket: any; // SocketIOClient
+  socket: any;
 }
 
 const SocketContext = createContext<SocketContextValue>({
@@ -14,9 +14,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<any>(null);
 
   useEffect(() => {
-    // Dynamically import socket.io-client
     import('socket.io-client').then((io) => {
-      const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      const SOCKET_URL = window.location.origin;
       const client = io.default(SOCKET_URL, {
         transports: ['websocket'],
         withCredentials: true,

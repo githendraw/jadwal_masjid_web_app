@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+import pool from '@/lib/db';
 
 export async function GET(req: NextRequest) {
-  const slug = req.nextUrl.searchParams.get('slug');
+  const { searchParams } = new URL(req.url);
+  const slug = searchParams.get('slug');
   if (!slug) return NextResponse.json({ error: 'slug required' }, { status: 400 });
   try {
-    const res = await fetch(`${BACKEND_URL}/api/mosque/settings?slug=${slug}`);
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const [rows]: any = await pool.execute(
+      'SELECT name, settings, lat, `long`, calculation_method FROM mosques WHERE mosque_slug = ?',
+      [slug]
+    );
+    return NextResponse.json(rows[0]);
   } catch (err) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

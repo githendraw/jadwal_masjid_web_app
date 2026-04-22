@@ -117,7 +117,7 @@ export default function SettingsPage() {
   const { data: mosque, isLoading, error: mosqueError, refetch } = useQuery({
     queryKey: ['mosque'],
     queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mosques/me`, {
+      const res = await fetch('/api/mosques/me', {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch');
@@ -131,7 +131,7 @@ export default function SettingsPage() {
   const { data: devices } = useQuery({
     queryKey: ['devices'],
     queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/devices`, {
+      const res = await fetch('/api/devices', {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch devices');
@@ -144,7 +144,7 @@ export default function SettingsPage() {
   const { data: prayerTimes } = useQuery({
     queryKey: ['prayer-times'],
     queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prayer-times`, {
+      const res = await fetch('/api/prayer-times', {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch prayer times');
@@ -157,7 +157,7 @@ export default function SettingsPage() {
   const { data: adhanSettings } = useQuery({
     queryKey: ['adhan-settings'],
     queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/adhan-settings`, {
+      const res = await fetch('/api/adhan-settings', {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch adhan settings');
@@ -194,7 +194,7 @@ export default function SettingsPage() {
     const prayer = prayerTimes.find((p: typeof prayerTimes[number]) => p.id == id);
     if (!prayer) return;
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prayer-times/${id}/toggle`, {
+      await fetch(`/api/prayer-times/${id}/toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({ status: prayer.status === 'enabled' ? 'disabled' : 'enabled' }),
@@ -208,7 +208,7 @@ export default function SettingsPage() {
   // === General Settings Management ===
   const updateGeneralSetting = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/${editingGeneralData.id}`, {
+      const res = await fetch(`/api/settings/${editingGeneralData.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({ value: editingGeneralData.value, status: editingGeneralData.status }),
@@ -223,7 +223,7 @@ export default function SettingsPage() {
 
   const editGeneralSetting = async (id: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/${id}`, {
+      const res = await fetch(`/api/settings/${id}`, {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch setting');
@@ -239,7 +239,7 @@ export default function SettingsPage() {
     const setting = (mosque?.general_settings || []).find((s: any) => s.id == id);
     if (!setting) return;
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/${id}/toggle`, {
+      await fetch(`/api/settings/${id}/toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({ status: setting.status === 'enabled' ? 'disabled' : 'enabled' }),
@@ -258,7 +258,7 @@ export default function SettingsPage() {
         alert('Bearing harus antara 0 dan 360 derajat');
         return;
       }
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings`, {
+      const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({ key: 'qibla_direction', value: { bearing: parseFloat(editingQiblaData.value), method: '' } }),
@@ -274,7 +274,7 @@ export default function SettingsPage() {
   // === Device Management ===
   const disconnectDevice = async (deviceId: string) => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/devices/${deviceId}/disconnect`, {
+      await fetch(`/api/devices/${deviceId}/disconnect`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
@@ -305,7 +305,7 @@ export default function SettingsPage() {
 
     if (editingTimes[selectedPrayer] && editingTimes[selectedPrayer] !== prayer.time) {
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prayer-times/${prayer.id}/time`, {
+        await fetch(`/api/prayer-times/${prayer.id}/time`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
           body: JSON.stringify({ time: editingTimes[selectedPrayer] }),

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -86,7 +87,7 @@ export default function RegisterPage() {
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full shadow-lg mb-6 border border-white/30 transform hover:scale-105 transition-transform duration-300">
-            <img src="/logo.png" alt="Jadwal Masjid" className="w-12 h-12" />
+            <img src="/logo.png" alt="Jadwal Masjid" className="w-12 h-12 object-contain" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-3 tracking-tight drop-shadow-lg">Jadwal Masjid</h1>
           <p className="text-emerald-100 text-lg font-medium">Daftar masjid baru</p>

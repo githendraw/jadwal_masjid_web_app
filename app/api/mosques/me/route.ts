@@ -1,0 +1,28 @@
+import { NextRequest, NextResponse } from 'next/server';
+import pool from '@/lib/db';
+import { authenticateToken } from '@/lib/auth-middleware';
+
+export async function GET(req: NextRequest) {
+  const user = authenticateToken(req);
+  if (!user || !user.mosque_id) {
+    return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+  }
+  try {
+    const [rows]: any = await pool.execute(
+      'SELECT id, name, mosque_slug as slug, settings, lat, `long`, calculation_method, is_online, is_active FROM mosques WHERE id = ?',
+      [user.mosque_id]
+    );
+    if (!rows || !rows.length) {
+      return NextResponse.json({ error: 'Mosque not found' }, { status: 404 });
+    }
+    const mosque = rows[0];
+    mosque.settings = typeof mosque.settings === 'string' ? JSON.parse(mosque.settings) : mosque.settings || {};
+    return NextResponse.json({
+      ...mosque,
+      general_settings: [],
+      qibla_direction: mosque.settings?.qibla_direction || { bearing: 0, method: '' },
+    });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}

@@ -1,38 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+import crypto from 'crypto';
+import pool from '@/lib/db';
+import { authenticateToken, requireSuperAdmin } from '@/lib/auth-middleware';
 
 export async function POST(req: NextRequest) {
+  const user = authenticateToken(req);
+  const superadminError = requireSuperAdmin(user);
+  if (superadminError) return superadminError;
+
+  const { mosque_id, name } = await req.json();
   try {
-    const body = await req.json();
-    const res = await fetch(`${BACKEND_URL}/api/admin/devices`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.headers.get('authorization')?.replace('Bearer ', '') || ''}`,
-      },
-      body: JSON.stringify(body),
+    const device_uuid = crypto.randomUUID();
+    await pool.execute(
+      'INSERT INTO devices (id, mosque_id, name) VALUES (?, ?, ?)',
+      [device_uuid, mosque_id, name || 'Device']
+    );
+    return NextResponse.json({
+      device_uuid,
+      qr_url: `https://app.jadwalmasjid.com/pair?device=${device_uuid}`
     });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  const user = authenticateToken(req);
+  const superadminError = requireSuperAdmin(user);
+  if (superadminError) return superadminError;
+
+  const { searchParams } = new URL(req.url);
+  const device_uuid = searchParams.get('device_uuid');
   try {
-    const path = req.nextUrl.pathname; // /api/admin/devices/:device_uuid
-    const deviceUuid = path.split('/').pop();
-    const res = await fetch(`${BACKEND_URL}/api/admin/devices/${deviceUuid}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${req.headers.get('authorization')?.replace('Bearer ', '') || ''}`,
-      },
-    });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    await pool.execute('DELETE FROM devices WHERE id = ?', [device_uuid]);
+    return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

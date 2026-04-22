@@ -69,12 +69,12 @@ export default function AdminDashboard() {
 
   const handleToggleStatus = async (userId: number) => {
     try {
-      const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}`, {
+      const userRes = await fetch(`/api/admin/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       const userData = await userRes.json();
       const newStatus = userData.status === 'active' ? 'disabled' : 'active';
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}/toggle-status`, {
+      const res = await fetch(`/api/admin/users/${userId}/toggle-status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({ status: newStatus }),
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
     if (!editingUser) return;
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${editingUser.id}`, {
+      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({ name: editingUser.name, role: editingUser.role, mosque_id: editingUser.mosque_id }),

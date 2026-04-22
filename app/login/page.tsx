@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -51,15 +52,15 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      
-      if (res.ok && data.user) {
-        login(data.user, data.token);
+
+      if (res.ok && data.token) {
+        login({ email, role: data.role, name: email.split('@')[0] }, data.token);
         const redirect = searchParams.get('redirect') || '/settings';
         router.push(redirect);
       } else {
@@ -97,11 +98,7 @@ function LoginForm() {
         <div className="relative w-16 h-16 mb-4">
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 21h18M9 17h1M5 21V11l7-10 7 10v10" />
-              <path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6" />
-              <circle cx="12" cy="11" r="2" />
-            </svg>
+            <Image src="/logo.png" alt="Jadwal Masjid" fill className="object-contain" />
           </div>
         </div>
         <h1 className="text-2xl font-bold text-white mb-1">Jadwal Masjid</h1>

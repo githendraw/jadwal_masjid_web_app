@@ -7,14 +7,18 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - PORT=3000
-      - BACKEND_URL=https://api.jadwalmasjid.com
-      - NEXT_PUBLIC_API_URL=https://api.jadwalmasjid.com
+      - PORT=4000
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - DB_HOST=jadwal_masjid_mysql
+      - DB_USER=masjid
+      - DB_PASSWORD=masjid123
+      - DB_NAME=jadwal_masjid
     ports:
-      - "4000:3000"
+      - "4000:4000"
     networks:
-      - app-network
+      - mysql-network
 
 networks:
-  app-network:
-    driver: bridge
+  mysql-network:
+    name: jadwal_masjid_network
+    external: true

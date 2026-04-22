@@ -2,18 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { authenticateToken, requireSuperAdmin } from '@/lib/auth-middleware';
 
-export async function GET(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const user = authenticateToken(req);
   const superadminError = requireSuperAdmin(user);
   if (superadminError) return superadminError;
 
+  const { userId } = await params;
+  const { status } = await req.json();
   try {
-    const [rows]: any = await pool.execute(`
-      SELECT u.id, u.email, u.mosque_id, m.name as mosque_name, m.settings, m.is_online, m.is_active, m.mosque_slug, m.mosque_uuid
-      FROM users u LEFT JOIN mosques m ON u.mosque_id = m.id
-      ORDER BY m.name
-    `);
-    return NextResponse.json(rows);
+    const isActive = status === 'active' ? 1 : 0;
+    await pool.execute('UPDATE users SET is_active = ? WHERE id = ?', [isActive, userId]);
+    return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
