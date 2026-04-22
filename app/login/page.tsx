@@ -152,9 +152,18 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/80 shadow-lg shadow-primary/30 px-4 py-3 text-base font-semibold"
+          className="relative w-full inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 px-4 py-3 text-base font-semibold overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.4)',
+          }}
         >
-          {loading ? 'Memproses...' : 'Masuk'}
+          <span className="relative z-10 text-white">
+            {loading ? 'Memproses...' : 'Masuk'}
+          </span>
+          {!loading && (
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-500 opacity-0 hover:opacity-100 transition-opacity" />
+          )}
         </button>
       </form>
 

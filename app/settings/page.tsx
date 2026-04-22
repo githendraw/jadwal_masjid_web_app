@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 type Section = 'general' | 'prayer-times' | 'qibla' | 'adhans' | 'devices';
 
@@ -392,12 +393,8 @@ export default function SettingsPage() {
       <aside className="w-56 min-h-screen bg-slate-900 border-r border-border flex flex-col">
         <div className="p-4">
           <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 21h18M9 17h1M5 21V11l7-10 7 10v10" />
-                <path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6" />
-                <circle cx="12" cy="11" r="2" />
-              </svg>
+            <div className="relative w-8 h-8 rounded-lg overflow-hidden">
+              <Image src="/logo.png" alt="Jadwal Masjid" fill className="object-contain" />
             </div>
             <span className="font-bold text-white">Settings</span>
           </div>

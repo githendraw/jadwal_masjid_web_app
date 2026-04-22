@@ -29,7 +29,7 @@ export default function AdminDashboard() {
   const { data: users, isLoading, error } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
+      const res = await fetch('/api/admin/users', {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       if (!res.ok) throw new Error('Failed to fetch users');
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
+      const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify(form),
