@@ -7,9 +7,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import {
   Settings,
-  Clock,
-  Compass,
-  Bell,
   Smartphone,
   Menu,
   X,
@@ -22,17 +19,11 @@ import {
 
 const navItems = [
   { id: 'umum', label: 'Umum', href: '/settings/umum', icon: <Settings className="w-5 h-5" /> },
-  { id: 'waktu-sholat', label: 'Waktu Sholat', href: '/settings/waktu-sholat', icon: <Clock className="w-5 h-5" /> },
-  { id: 'arah-kiblat', label: 'Arah Kiblat', href: '/settings/arah-kiblat', icon: <Compass className="w-5 h-5" /> },
-  { id: 'adzan', label: 'Adzan', href: '/settings/adzan', icon: <Bell className="w-5 h-5" /> },
   { id: 'perangkat', label: 'Perangkat', href: '/settings/perangkat', icon: <Smartphone className="w-5 h-5" /> },
 ];
 
 const breadcrumbMap: Record<string, { label: string; parent?: string }> = {
   '/settings/umum': { label: 'Umum', parent: 'Settings' },
-  '/settings/waktu-sholat': { label: 'Waktu Sholat', parent: 'Settings' },
-  '/settings/arah-kiblat': { label: 'Arah Kiblat', parent: 'Settings' },
-  '/settings/adzan': { label: 'Adzan', parent: 'Settings' },
   '/settings/perangkat': { label: 'Perangkat', parent: 'Settings' },
 };
 

@@ -152,7 +152,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="relative w-full inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 px-4 py-3 text-base font-semibold overflow-hidden"
+          className="relative w-full inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 px-3 py-1.5 text-sm font-semibold overflow-hidden"
           style={{
             background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
             boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.4)',

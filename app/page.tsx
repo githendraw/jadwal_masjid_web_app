@@ -40,7 +40,7 @@ export default function HomePage() {
           {user ? (
             <button
               onClick={() => router.push('/settings')}
-              className="relative px-10 py-4 text-lg font-bold rounded-xl overflow-hidden group"
+              className="relative px-3 py-1.5 text-sm font-semibold rounded-lg overflow-hidden group"
               style={{
                 background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.4)',
@@ -52,7 +52,7 @@ export default function HomePage() {
           ) : (
             <button
               onClick={() => router.push('/login')}
-              className="relative px-8 py-3 text-base font-bold rounded-xl overflow-hidden group"
+              className="relative px-3 py-1.5 text-sm font-semibold rounded-lg overflow-hidden group"
               style={{
                 background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.4)',
