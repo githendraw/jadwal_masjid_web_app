@@ -86,124 +86,132 @@ export default function RegisterPage() {
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-      {/* Register Card */}
-        <div className="w-full max-w-md p-8 relative z-10" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.2s both' }}>
-          {/* Header */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="relative w-16 h-16 mb-4">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Image src="/logo.png" alt="Jadwal Masjid" fill className="object-contain" />
-              </div>
+      <div className="w-full max-w-md p-8 relative z-10">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8" style={{ animation: 'fadeSlideUp 0.5s ease-out' }}>
+          <div className="relative w-16 h-16 mb-4">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Image src="/logo.png" alt="Jadwal Masjid" fill className="object-contain" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-1">Jadwal Masjid</h1>
-            <p className="text-muted-foreground text-sm text-center">Daftar masjid baru</p>
           </div>
+          <h1 className="text-2xl font-bold text-white mb-1">Jadwal Masjid</h1>
+          <p className="text-muted-foreground text-sm text-center">Daftar masjid baru</p>
+        </div>
 
-          {/* Form Card */}
-          <div className="card p-8 card-shadow backdrop-blur-sm bg-slate-800/80 border border-slate-700/50 rounded-2xl">
-            {errorMessage && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm font-medium">
-                {errorMessage}
-              </div>
-            )}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Mosque Name Field */}
-            <div>
-              <Label className="text-slate-300 font-semibold text-sm">Nama Masjid</Label>
-              <div className="relative mt-2">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Building2 className="h-5 w-5 text-slate-400" />
-                </div>
-                <Input
-                  {...register('mosqueName')}
-                  placeholder="Masjid Al-Ikhlas"
-                  className="pl-12 text-base py-4 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
-                />
-              </div>
-              {errors.mosqueName && (
-                <p className="mt-2 text-sm text-red-400 font-medium">{errors.mosqueName.message}</p>
-              )}
+        {/* Register Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.2s both' }}>
+          {/* Mosque Name */}
+          <div className="relative">
+            <Label htmlFor="mosqueName" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
+              Nama Masjid
+            </Label>
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Building2 className="h-5 w-5 text-slate-400" />
             </div>
+            <Input
+              id="mosqueName"
+              type="text"
+              {...register('mosqueName')}
+              className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0"
+              placeholder="Masjid Al-Ikhlas"
+            />
+          </div>
+          {errors.mosqueName && (
+            <p className="text-red-400 text-sm -mt-3">{errors.mosqueName.message}</p>
+          )}
 
-            {/* Email Field */}
-            <div>
-              <Label className="text-slate-300 font-semibold text-sm">Email</Label>
-              <div className="relative mt-2">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-400" />
-                </div>
-                <Input
-                  {...register('email')}
-                  placeholder="email@example.com"
-                  className="pl-12 text-base py-4 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-2 text-sm text-red-400 font-medium">{errors.email.message}</p>
-              )}
+          {/* Email */}
+          <div className="relative">
+            <Label htmlFor="email" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
+              Email
+            </Label>
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Mail className="h-5 w-5 text-slate-400" />
             </div>
+            <Input
+              id="email"
+              type="email"
+              {...register('email')}
+              className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0"
+              placeholder="email@example.com"
+            />
+          </div>
+          {errors.email && (
+            <p className="text-red-400 text-sm -mt-3">{errors.email.message}</p>
+          )}
 
-            {/* Password Field */}
-            <div>
-              <Label className="text-slate-300 font-semibold text-sm">Password</Label>
-              <div className="relative mt-2">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
-                </div>
-                <Input
-                  {...register('password')}
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  className="pl-12 pr-12 text-base py-4 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-300 transition-colors" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-slate-400 hover:text-slate-300 transition-colors" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-2 text-sm text-red-400 font-medium">{errors.password.message}</p>
-              )}
+          {/* Password */}
+          <div className="relative">
+            <Label htmlFor="password" className="absolute left-3 transition-all duration-200 pointer-events-none text-muted-foreground text-sm top-3">
+              Password
+            </Label>
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Lock className="h-5 w-5 text-slate-400" />
             </div>
-
-            {/* Submit Button */}
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              {...register('password')}
+              className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0 pr-12"
+              placeholder="••••••••"
+            />
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className="relative w-full inline-flex items-center justify-center rounded-xl font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 px-4 py-4 text-lg font-semibold overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.4)',
-              }}
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center"
             >
-              <span className="relative z-10 text-white">
-                {isSubmitting ? 'Memproses...' : 'Daftar'}
-              </span>
-              {!isSubmitting && (
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-500 opacity-0 hover:opacity-100 transition-opacity" />
+              {showPassword ? (
+                <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+              ) : (
+                <Eye className="h-5 w-5 text-slate-400 hover:text-slate-300" />
               )}
             </button>
-          </form>
-
-          {/* Footer Links */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-slate-400">
-              Sudah terdaftar?{' '}
-              <a href="/login" className="text-emerald-400 font-semibold hover:text-emerald-300 transition-colors">
-                Masuk di sini
-              </a>
-            </p>
           </div>
+          {errors.password && (
+            <p className="text-red-400 text-sm -mt-3">{errors.password.message}</p>
+          )}
+
+          {/* Error */}
+          {errorMessage && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="relative w-full inline-flex items-center justify-center rounded-xl font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 px-4 py-3 text-base font-semibold overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.4)',
+            }}
+          >
+            <span className="relative z-10 text-white">
+              {isSubmitting ? 'Memproses...' : 'Daftar'}
+            </span>
+            {!isSubmitting && (
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-500 opacity-0 hover:opacity-100 transition-opacity" />
+            )}
+          </button>
+        </form>
+
+        {/* Back to Home */}
+        <div className="mt-8 text-center" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.4s both' }}>
+          <a href="/login" className="text-muted-foreground hover:text-emerald-400 transition-colors text-sm">
+            ← Kembali ke Beranda
+          </a>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
