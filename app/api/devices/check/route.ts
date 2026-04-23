@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { corsResponse, handleCors } from '@/lib/cors';
 
 export async function GET(req: NextRequest) {
+  const corsResult = handleCors(req);
+  if (corsResult) return corsResult;
   const deviceUuid = req.nextUrl.searchParams.get('device_uuid');
 
   if (!deviceUuid) {
-    return NextResponse.json({ error: 'device_uuid required' }, { status: 400 });
+    return corsResponse({ error: 'device_uuid required' }, 400);
   }
 
   try {
@@ -15,13 +18,13 @@ export async function GET(req: NextRequest) {
     );
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ registered: false });
+      return corsResponse({ registered: false });
     }
 
     const row = rows[0];
     const settings = typeof row.settings === 'string' ? JSON.parse(row.settings) : row.settings || {};
 
-    return NextResponse.json({
+    return corsResponse({
       registered: true,
       device_uuid: row.device_uuid,
       mosque_id: row.mosque_id,
@@ -39,6 +42,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error checking device:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return corsResponse({ error: 'Internal server error' }, 500);
   }
 }

@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { corsResponse, handleCors } from '@/lib/cors';
 
 export async function POST(request: NextRequest) {
+  const corsResult = handleCors(request);
+  if (corsResult) return corsResult;
   try {
     const { code, device_uuid } = await request.json();
 
     if (!code || !device_uuid) {
-      return NextResponse.json({ 
+      return corsResponse({ 
         error: 'Code and device_uuid are required' 
-      }, { status: 400 });
+      }, 400);
     }
 
     const [rows]: any = await pool.execute(
@@ -17,9 +20,9 @@ export async function POST(request: NextRequest) {
     );
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ 
+      return corsResponse({ 
         error: 'Kode tidak ditemukan' 
-      }, { status: 404 });
+      }, 404);
     }
 
     const pairing = rows[0];
@@ -27,15 +30,15 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(pairing.expires_at);
 
     if (pairing.used_at) {
-      return NextResponse.json({ 
+      return corsResponse({ 
         error: 'Kode sudah digunakan oleh perangkat lain' 
-      }, { status: 400 });
+      }, 400);
     }
 
     if (now > expiresAt) {
-      return NextResponse.json({ 
+      return corsResponse({ 
         error: 'Kode sudah kadaluarsa' 
-      }, { status: 400 });
+      }, 400);
     }
 
     const deviceName = `TV ${Date.now().toString(36).slice(-4).toUpperCase()}`;
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
       ? JSON.parse(pairing.settings) 
       : pairing.settings || {};
 
-    return NextResponse.json({
+    return corsResponse({
       success: true,
       device_uuid: device_uuid,
       mosque_uuid: pairing.mosque_uuid,
@@ -72,6 +75,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error verifying pairing code:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return corsResponse({ error: 'Internal server error' }, 500);
   }
 }
