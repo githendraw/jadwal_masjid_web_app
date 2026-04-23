@@ -6,9 +6,10 @@ import { handleCors, corsResponse } from '@/lib/cors';
 export async function GET(req: NextRequest) {
   const cors = handleCors(req);
   if (cors) return cors;
+
   const user = authenticateToken(req);
   if (!user || !user.mosque_id) {
-    return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    return corsResponse({ error: 'No token provided' }, 401);
   }
   try {
     const [rows]: any = await pool.execute(
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
       [user.mosque_id]
     );
     if (!rows || !rows.length) {
-      return NextResponse.json({ error: 'Mosque not found' }, { status: 404 });
+      return corsResponse({ error: 'Mosque not found' }, 404);
     }
     const mosque = rows[0];
     const settings = typeof mosque.settings === 'string' ? JSON.parse(mosque.settings) : mosque.settings || {};
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
           return { id: key, key, value: String(val), status: 'enabled', order: 0 };
         });
 
-    return NextResponse.json({
+    return corsResponse({
        ...mosque,
        latitude: mosque.lat,
        longitude: mosque.long,
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
        qibla_direction: settings.qibla_direction || { bearing: 0, method: '' },
        background: settings.background || '',
      });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
-  }
+   } catch (err) {
+    return corsResponse({ error: String(err) }, 500);
+   }
 }
