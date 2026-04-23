@@ -441,7 +441,7 @@ export default function UmumPage() {
     return (
       <div className="space-y-5">
         <div>
-          <label className="text-sm font-medium text-foreground">runningText1</label>
+          <label className="text-sm font-medium text-foreground">Running Text 1</label>
           <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris atas (latar kuning)</p>
          <textarea
              value={formState.runningText1}
@@ -452,7 +452,7 @@ export default function UmumPage() {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-foreground">runningText2</label>
+          <label className="text-sm font-medium text-foreground">Running Text 2</label>
           <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris bawah (latar merah)</p>
       <textarea
              value={formState.runningText2}
