@@ -347,6 +347,26 @@ export default function UmumPage() {
 
   return (
     <>
+    <style jsx global>{`
+      /* Fix z-index for Leaflet map in accordion - map must stay below topbar and notifications */
+      .leaflet-pane {
+        z-index: 10 !important;
+      }
+      .leaflet-marker-pane,
+      .leaflet-icon-pane,
+      .leaflet-overlay-pane {
+        z-index: 11 !important;
+      }
+      .leaflet-interactive {
+        z-index: 12 !important;
+      }
+      .leaflet-popup-pane {
+        z-index: 15 !important;
+      }
+      .leaflet-tooltip-pane {
+        z-index: 16 !important;
+      }
+    `}</style>
     <div className="max-w-4xl mx-auto" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
       {toast && (
         <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
