@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const settings = typeof mosque.settings === 'string' ? JSON.parse(mosque.settings) : mosque.settings || {};
 
    const general_settings = Object.entries(settings)
-        .filter(([key]) => !['runningText1', 'runningText2', 'location', 'qibla_direction', 'background'].includes(key))
+        .filter(([key]) => !['runningText1', 'runningText2', 'location', 'background', 'is_muadzin'].includes(key))
         .map(([key, val]: [string, any]) => {
           if (val && typeof val === 'object') {
             return { id: key, key, value: val.value || '', status: val.status || 'disabled', order: val.order || 0 };
@@ -37,9 +37,9 @@ export async function GET(req: NextRequest) {
        longitude: mosque.long,
        general_settings,
   runningText1: settings.runningText1 || '',
-        runningText2: settings.runningText2 || '',
-       qibla_direction: settings.qibla_direction || { bearing: 0, method: '' },
-       background: settings.background || '',
+runningText2: settings.runningText2 || '',
+        background: settings.background || '',
+       is_muadzin: settings.is_muadzin || false,
      });
    } catch (err) {
     return corsResponse({ error: String(err) }, 500);

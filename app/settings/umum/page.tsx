@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon } from 'lucide-react';
+import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon, Zap } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
@@ -15,6 +15,7 @@ const TABS = [
   { id: 'location', label: 'Lokasi', icon: MapPin },
   { id: 'running-text', label: 'Running Text', icon: MessageSquare },
   { id: 'background', label: 'Background', icon: ImageIcon },
+  { id: 'auto', label: 'Auto', icon: Zap },
 ];
 
 const CALCULATION_METHODS = [
@@ -45,6 +46,7 @@ export default function UmumPage() {
     runningText1: '',
     runningText2: '',
     background: '',
+    isMuadzin: false,
   });
 
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export default function UmumPage() {
         runningText1: mosque.runningText1 || '',
         runningText2: mosque.runningText2 || '',
         background: mosque.background || '',
+        isMuadzin: mosque.is_muadzin || false,
       });
       if (mosque.background) {
         setBackgroundPreview(mosque.background);
@@ -263,6 +266,27 @@ export default function UmumPage() {
         showToast('Background berhasil disimpan & dikirim ke TV');
         queryClient.invalidateQueries({ queryKey: ['mosque'] });
       }
+    } catch {
+      showToast('Gagal menyimpan');
+    }
+    setSaving(false);
+  };
+
+  const saveAuto = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/mosque/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ is_muadzin: formState.isMuadzin }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(data.error || 'Gagal menyimpan');
+        return;
+      }
+      showToast(formState.isMuadzin ? 'Mode Muadzin diaktifkan' : 'Mode Muadzin dinonaktifkan');
+      queryClient.invalidateQueries({ queryKey: ['mosque'] });
     } catch {
       showToast('Gagal menyimpan');
     }
@@ -581,6 +605,32 @@ export default function UmumPage() {
                 onClick={saveBackground}
                 disabled={saving || !hasBackground}
                 className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan & Update TV
+              </button>
+            </div>
+          )}
+
+          {/* AUTO TAB */}
+          {activeTab === 'auto' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                <div className="flex-1">
+                  <p className="text-white font-medium">Mode Muadzin</p>
+                  <p className="text-muted-foreground text-sm mt-1">Tampilkan badge "Mode Muadzin" di TV Android</p>
+                </div>
+                <button
+                  onClick={() => setFormState(prev => ({ ...prev, isMuadzin: !prev.isMuadzin }))}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${formState.isMuadzin ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${formState.isMuadzin ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <button
+                onClick={saveAuto}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Simpan & Update TV

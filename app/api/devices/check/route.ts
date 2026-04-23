@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
         lat: row.lat,
         long: row.long,
         calculationMethod: row.calculation_method || 'KEMENAG',
+        is_muadzin: settings.is_muadzin || false,
       },
     });
   } catch (error) {

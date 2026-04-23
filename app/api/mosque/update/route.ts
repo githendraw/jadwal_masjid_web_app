@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, address, lat, long, calculation_method, runningText1, runningText2, background } = body;
+    const { name, address, lat, long, calculation_method, runningText1, runningText2, background, is_muadzin } = body;
 
     const columns: string[] = [];
     const values: any[] = [];
@@ -72,6 +72,11 @@ export async function PUT(req: NextRequest) {
 
       if (background !== undefined) {
         settingsUpdateData.background = background;
+        needSettingsUpdate = true;
+      }
+
+      if (is_muadzin !== undefined) {
+        settingsUpdateData.is_muadzin = Boolean(is_muadzin);
         needSettingsUpdate = true;
       }
 
