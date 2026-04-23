@@ -48,7 +48,6 @@ export default function UmumPage() {
   });
 
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: mosque, isLoading, error: mosqueError } = useQuery({
@@ -103,14 +102,6 @@ export default function UmumPage() {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
-  };
-
-  const openMapFullscreen = () => {
-    setMapFullscreen(true);
-  };
-
-  const closeMapFullscreen = () => {
-    setMapFullscreen(false);
   };
 
   const handleGetGeoLocation = () => {
@@ -278,6 +269,27 @@ export default function UmumPage() {
     setSaving(false);
   };
 
+  const saveInfo = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/mosque/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ name: formState.name, address: formState.address }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(data.error || 'Gagal menyimpan');
+        return;
+      }
+      showToast('Informasi berhasil disimpan & dikirim ke TV');
+      queryClient.invalidateQueries({ queryKey: ['mosque'] });
+    } catch {
+      showToast('Gagal menyimpan');
+    }
+    setSaving(false);
+  };
+
   useEffect(() => {
     if (!user) router.push('/login');
   }, [user, router]);
@@ -314,251 +326,8 @@ export default function UmumPage() {
     );
   }
 
-  const TabContent = () => {
-    if (activeTab === 'info') {
-      return (
-        <div className="space-y-5">
-          <div>
-            <label className="text-sm font-medium text-foreground">Nama Masjid</label>
-            <input
-              value={formState.name}
-              onChange={e => setFormState(prev => ({ ...prev, name: e.target.value }))}
-              className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
-              placeholder="Masukkan nama masjid anda"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground">Alamat</label>
-            <input
-              value={formState.address}
-              onChange={e => setFormState(prev => ({ ...prev, address: e.target.value }))}
-              className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
-              placeholder="Masukkan alamat masjid anda"
-            />
-          </div>
-
-          <button
-            onClick={() => {
-              setSaving(true);
-              fetch('/api/mosque/update', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
-                body: JSON.stringify({ name: formState.name, address: formState.address }),
-              }).then(res => {
-                if (!res.ok) return res.json().then(d => { throw d; });
-                return res.json();
-              }).then(() => {
-                showToast('Informasi berhasil disimpan');
-                queryClient.invalidateQueries({ queryKey: ['mosque'] });
-              }).catch(() => {
-                showToast('Gagal menyimpan');
-              }).finally(() => setSaving(false));
-            }}
-            disabled={saving}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan Informasi & Update TV
-          </button>
-        </div>
-      );
-    }
-              if (activeTab === 'location') {
-      const hasCoords = formState.lat && formState.long;
-      return (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-foreground">Latitude</label>
-              <input
-                value={formState.lat}
-                onChange={e => setFormState(prev => ({ ...prev, lat: e.target.value }))}
-                className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
-                placeholder="-6.200000"
-                type="text"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">Longitude</label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  value={formState.long}
-                  onChange={e => setFormState(prev => ({ ...prev, long: e.target.value }))}
-                  className="input flex-1 bg-slate-800/50 border-slate-700 text-white font-mono"
-                  placeholder="106.816667"
-                  type="text"
-                />
-                <button
-                  onClick={handleGetGeoLocation}
-                  disabled={geoLoading}
-                  className="shrink-0 w-10 h-10 flex items-center justify-center bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors disabled:opacity-50"
-                  title="Deteksi lokasi dari GPS browser"
-                >
-                  {geoLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-white" />
-                  ) : (
-                    <MapPin className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {hasCoords && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              Koordinat terdeteksi — klik "Simpan Lokasi" untuk menyimpan
-            </div>
-          )}
-
-          {hasCoords ? (
-            <div className={`relative rounded-lg overflow-hidden ${mapFullscreen ? 'fixed inset-0 z-[9999] bg-slate-900' : ''}`}>
-              <div style={{ height: mapFullscreen ? '100vh' : '256px' }}>
-                <MapPicker
-                  key={`${formState.lat}-${formState.long}`}
-                  lat={parseFloat(formState.lat)}
-                  lng={parseFloat(formState.long)}
-                  onChange={handleMapChange}
-                  fullscreen={mapFullscreen}
-                  onCloseFullscreen={closeMapFullscreen}
-                />
-              </div>
-              {!mapFullscreen && (
-                <button
-                  onClick={openMapFullscreen}
-                  className="absolute bottom-2 right-3 p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-lg"
-                  style={{ zIndex: 1000 }}
-                  title="Buka peta fullscreen"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-64 rounded-lg bg-slate-800/50 flex items-center justify-center">
-              <p className="text-slate-400 text-sm">Klik tombol <MapPin className="inline w-4 h-4" /> untuk mendapatkan koordinat</p>
-            </div>
-          )}
-
-          <div>
-            <label className="text-sm font-medium text-foreground">Metode Perhitungan</label>
-            <select
-              value={formState.calculationMethod}
-              onChange={e => setFormState(prev => ({ ...prev, calculationMethod: e.target.value }))}
-              className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
-            >
-              {CALCULATION_METHODS.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            onClick={saveLatLong}
-            disabled={saving}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan Lokasi & Update TV
-          </button>
-        </div>
-      );
-    }
-
-   if (activeTab === 'background') {
-      const hasBackground = backgroundPreview || formState.background;
-      return (
-        <div className="space-y-6">
-          <div>
-            <label className="text-sm font-medium text-foreground">Background TV</label>
-            <p className="text-muted-foreground text-xs mb-4">Gambar latar belakang untuk tampilan TV masjid (max 10MB, akan di-compress otomatis)</p>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all"
-            >
-              <ImageIcon className="w-12 h-12 mx-auto text-slate-500 mb-3" />
-              <p className="text-white font-medium">Klik untuk pilih gambar</p>
-              <p className="text-muted-foreground text-xs mt-1">PNG, JPG, WebP</p>
-            </div>
-          </div>
-
-          {hasBackground && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">Preview</label>
-                {hasBackground && (
-                  <button
-                    onClick={() => {
-                      setBackgroundPreview(null);
-                      setFormState(prev => ({ ...prev, background: '' }));
-                    }}
-                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    Hapus
-                  </button>
-                )}
-              </div>
-              <div className="rounded-xl overflow-hidden border border-slate-700 shadow-lg">
-                <img src={backgroundPreview || formState.background} alt="Background Preview" className="w-full h-auto max-h-[500px] object-cover bg-black" />
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={saveBackground}
-            disabled={saving || !hasBackground}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan & Update TV
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-5">
-        <div>
-          <label className="text-sm font-medium text-foreground">Running Text 1</label>
-          <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris atas (latar kuning)</p>
-         <textarea
-            value={formState.runningText1}
-            onChange={e => setFormState(prev => ({ ...prev, runningText1: e.target.value }))}
-            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-            placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm font-medium text-foreground">Running Text 2</label>
-          <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris bawah (latar merah)</p>
-      <textarea
-            value={formState.runningText2}
-            onChange={e => setFormState(prev => ({ ...prev, runningText2: e.target.value }))}
-            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-            placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
-          />
-        </div>
-
-        <button
-          onClick={saveRunningText}
-          disabled={saving}
-          className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Simpan & Update TV
-        </button>
-      </div>
-    );
-  };
+  const hasCoords = formState.lat && formState.long;
+  const hasBackground = backgroundPreview || formState.background;
 
   return (
     <>
@@ -574,7 +343,6 @@ export default function UmumPage() {
         <p className="text-muted-foreground">Kelola informasi masjid dan pengaturan tampilan TV</p>
       </div>
 
-      {/* Tabs */}
       <div className="card rounded-xl">
         <div className="border-b border-border px-4">
           <div className="flex gap-1 -mb-px overflow-x-auto">
@@ -600,7 +368,225 @@ export default function UmumPage() {
         </div>
 
         <div className="card-content p-6">
-          <TabContent />
+          {/* INFO TAB */}
+          {activeTab === 'info' && (
+            <div className="space-y-5">
+              <div>
+                <label className="text-sm font-medium text-foreground">Nama Masjid</label>
+                <input
+                  value={formState.name}
+                  onChange={e => setFormState(prev => ({ ...prev, name: e.target.value }))}
+                  className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
+                  placeholder="Masukkan nama masjid anda"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Alamat</label>
+                <input
+                  value={formState.address}
+                  onChange={e => setFormState(prev => ({ ...prev, address: e.target.value }))}
+                  className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
+                  placeholder="Masukkan alamat masjid anda"
+                />
+              </div>
+              <button
+                onClick={saveInfo}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan Informasi & Update TV
+              </button>
+            </div>
+          )}
+
+          {/* LOCATION TAB */}
+          {activeTab === 'location' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Latitude</label>
+                  <input
+                    value={formState.lat}
+                    onChange={e => setFormState(prev => ({ ...prev, lat: e.target.value }))}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
+                    placeholder="-6.200000"
+                    type="text"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Longitude</label>
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      value={formState.long}
+                      onChange={e => setFormState(prev => ({ ...prev, long: e.target.value }))}
+                      className="input flex-1 bg-slate-800/50 border-slate-700 text-white font-mono"
+                      placeholder="106.816667"
+                      type="text"
+                    />
+                    <button
+                      onClick={handleGetGeoLocation}
+                      disabled={geoLoading}
+                      className="shrink-0 w-10 h-10 flex items-center justify-center bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                      title="Deteksi lokasi dari GPS browser"
+                    >
+                      {geoLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-white" />
+                      ) : (
+                        <MapPin className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {hasCoords && (
+                <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm">
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  Koordinat terdeteksi — klik "Simpan Lokasi" untuk menyimpan
+                </div>
+              )}
+
+              {hasCoords ? (
+                <div className={`relative rounded-lg overflow-hidden ${mapFullscreen ? 'fixed inset-0 z-[9999] bg-slate-900' : ''}`}>
+                  <div style={{ height: mapFullscreen ? '100vh' : '256px' }}>
+                    <MapPicker
+                      key={`${formState.lat}-${formState.long}`}
+                      lat={parseFloat(formState.lat)}
+                      lng={parseFloat(formState.long)}
+                      onChange={handleMapChange}
+                      fullscreen={mapFullscreen}
+                      onCloseFullscreen={() => setMapFullscreen(false)}
+                    />
+                  </div>
+                  {!mapFullscreen && (
+                    <button
+                      onClick={() => setMapFullscreen(true)}
+                      className="absolute bottom-2 right-3 p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-lg"
+                      style={{ zIndex: 1000 }}
+                      title="Buka peta fullscreen"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full h-64 rounded-lg bg-slate-800/50 flex items-center justify-center">
+                  <p className="text-slate-400 text-sm">Klik tombol <MapPin className="inline w-4 h-4" /> untuk mendapatkan koordinat</p>
+                </div>
+              )}
+
+              <div>
+                <label className="text-sm font-medium text-foreground">Metode Perhitungan</label>
+                <select
+                  value={formState.calculationMethod}
+                  onChange={e => setFormState(prev => ({ ...prev, calculationMethod: e.target.value }))}
+                  className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
+                >
+                  {CALCULATION_METHODS.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={saveLatLong}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan Lokasi & Update TV
+              </button>
+            </div>
+          )}
+
+          {/* RUNNING TEXT TAB */}
+          {activeTab === 'running-text' && (
+            <div className="space-y-5">
+              <div>
+                <label className="text-sm font-medium text-foreground">Running Text 1</label>
+                <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris atas (latar kuning)</p>
+                <textarea
+                  value={formState.runningText1}
+                  onChange={e => setFormState(prev => ({ ...prev, runningText1: e.target.value }))}
+                  className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+                  placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Running Text 2</label>
+                <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris bawah (latar merah)</p>
+                <textarea
+                  value={formState.runningText2}
+                  onChange={e => setFormState(prev => ({ ...prev, runningText2: e.target.value }))}
+                  className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+                  placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
+                />
+              </div>
+              <button
+                onClick={saveRunningText}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan & Update TV
+              </button>
+            </div>
+          )}
+
+          {/* BACKGROUND TAB */}
+          {activeTab === 'background' && (
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm font-medium text-foreground">Background TV</label>
+                <p className="text-muted-foreground text-xs mb-4">Gambar latar belakang untuk tampilan TV masjid (max 10MB, akan di-compress otomatis)</p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all"
+                >
+                  <ImageIcon className="w-12 h-12 mx-auto text-slate-500 mb-3" />
+                  <p className="text-white font-medium">Klik untuk pilih gambar</p>
+                  <p className="text-muted-foreground text-xs mt-1">PNG, JPG, WebP</p>
+                </div>
+              </div>
+
+              {hasBackground && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">Preview</label>
+                    <button
+                      onClick={() => {
+                        setBackgroundPreview(null);
+                        setFormState(prev => ({ ...prev, background: '' }));
+                      }}
+                      className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                  <div className="rounded-xl overflow-hidden border border-slate-700 shadow-lg">
+                    <img src={backgroundPreview || formState.background} alt="Background Preview" className="w-full h-auto max-h-[500px] object-cover bg-black" />
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={saveBackground}
+                disabled={saving || !hasBackground}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan & Update TV
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -620,6 +606,6 @@ export default function UmumPage() {
         }
       `}</style>
     </div>
-  </>
+    </>
   );
 }
