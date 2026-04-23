@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Pencil, Trash2, Plus, Users, CheckCircle, Shield, AlertTriangle, X } from 'lucide-react';
+import { Pencil, Trash2, Plus, Users, CheckCircle, Shield, AlertTriangle, X, KeyRound } from 'lucide-react';
 
 interface AdminUser {
   id: number;
@@ -22,6 +22,7 @@ export default function PenggunaPage() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editPassword, setEditPassword] = useState('');
   const [form, setForm] = useState({ email: '', name: '', password: '', role: 'user' as 'superadmin' | 'admin' | 'user', mosque_id: '' });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,17 +107,25 @@ export default function PenggunaPage() {
     if (!editingUser) return;
     setLoading(true);
     try {
+      const body: any = { name: editingUser.name, role: editingUser.role, mosque_id: editingUser.mosque_id, status: editingUser.status };
+      if (editPassword.trim().length > 0) {
+        body.password = editPassword;
+      }
       const res = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
-        body: JSON.stringify({ name: editingUser.name, role: editingUser.role, mosque_id: editingUser.mosque_id, status: editingUser.status }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Failed to update');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update');
+      }
       setShowModal(false);
       setEditingUser(null);
+      setEditPassword('');
       refetch();
-    } catch (err) {
-      alert('Failed to update user');
+    } catch (err: any) {
+      alert(err.message || 'Failed to update user');
     }
     setLoading(false);
   };
@@ -278,7 +287,7 @@ export default function PenggunaPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => { setEditingUser(u); setShowModal(true); }}
+                        onClick={() => { setEditingUser({ ...u, status: String(u.status) === '1' || u.status === 'active' ? 'active' : 'disabled' }); setEditPassword(''); setShowModal(true); }}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-transparent hover:border-slate-500 hover:bg-slate-800 transition-colors"
                       >
                         <Pencil className="w-4 h-4" />
@@ -368,6 +377,17 @@ export default function PenggunaPage() {
                   <option value="active">Aktif</option>
                   <option value="disabled">Nonaktif</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Ganti Password</label>
+                <input
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  type="password"
+                  className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                  placeholder="Kosongkan jika tidak diganti"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Minimal 6 karakter</p>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">

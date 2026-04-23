@@ -119,7 +119,7 @@ export default function MasjidPage() {
           <p className="text-muted-foreground text-sm">Belum ada masjid terdaftar</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {(mosques || []).map((mosque: any) => (
             <MosqueCard key={mosque.id} mosque={mosque} />
           ))}
@@ -141,10 +141,14 @@ function MosqueCard({ mosque }: { mosque: any }) {
 
   const onlineCount = mosque.online_devices || 0;
   const totalCount = mosque.device_count || 0;
+  const hasOnline = onlineCount > 0;
 
   return (
-    <div className="card rounded-xl border border-border overflow-hidden hover:shadow-lg transition-shadow">
-      {/* Header */}
+    <div className={`card rounded-xl overflow-hidden transition-all ${hasOnline ? 'border border-emerald-500/40 shadow-lg shadow-emerald-500/5' : 'border border-border'}`}>
+      {/* Online pulse indicator */}
+      {hasOnline && (
+        <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
+      )}
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
@@ -160,19 +164,27 @@ function MosqueCard({ mosque }: { mosque: any }) {
         {/* Device count summary */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors group"
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors group ${hasOnline ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20' : 'bg-slate-800/50 hover:bg-slate-800'}`}
         >
           <div className="flex items-center gap-2">
-            <Monitor className="w-4 h-4 text-blue-400 shrink-0" />
+            <Monitor className={`w-4 h-4 shrink-0 ${hasOnline ? 'text-emerald-400' : 'text-blue-400'}`} />
             <div className="flex items-center gap-1.5 text-sm">
               <span className="text-white font-medium">{totalCount}</span>
               <span className="text-muted-foreground">TV terhubung</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              {onlineCount} online
-            </span>
+            {hasOnline ? (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
+                <Wifi className="w-3 h-3" />
+                {onlineCount} online
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <WifiOff className="w-3 h-3" />
+                offline
+              </span>
+            )}
             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </div>
         </button>
@@ -182,12 +194,12 @@ function MosqueCard({ mosque }: { mosque: any }) {
           <div className="mt-3 pt-3 border-t border-border" style={{ animation: 'fadeIn 0.2s ease-out' }}>
             <div className="space-y-1.5">
               {mosque.devices.map((device: any) => (
-                <div key={device.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800/30 transition-colors">
+                <div key={device.id} className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${device.is_online ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-slate-800/30 border border-transparent'}`}>
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-2 h-2 rounded-full ${device.is_online ? 'bg-emerald-500' : 'bg-slate-600'}`} />
-                    <span className="text-sm text-foreground">{device.name}</span>
+                    <div className={`w-2 h-2 rounded-full ${device.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`} />
+                    <span className={`text-sm ${device.is_online ? 'text-white font-medium' : 'text-muted-foreground'}`}>{device.name}</span>
                   </div>
-                  <span className={`text-xs ${device.is_online ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                  <span className={`text-xs font-medium ${device.is_online ? 'text-emerald-400' : 'text-slate-500'}`}>
                     {device.is_online ? 'Online' : 'Offline'}
                   </span>
                 </div>

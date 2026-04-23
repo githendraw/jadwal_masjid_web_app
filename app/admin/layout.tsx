@@ -16,6 +16,7 @@ import {
   User,
   ChevronDown,
   AlertTriangle,
+  KeyRound,
 } from 'lucide-react';
 
 const navItems = [
@@ -49,6 +50,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setShowLogoutConfirm(true);
   };
 
+  const closeUserMenu = () => setUserMenuOpen(false);
+
+  const userDropdown = (
+    <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-700">
+        <p className="text-sm font-medium text-white">{user?.name || 'Admin'}</p>
+        <p className="text-xs text-slate-400">{user?.email || user?.role}</p>
+      </div>
+      <div className="py-1">
+        <Link href="/profil" onClick={closeUserMenu} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+          <KeyRound className="w-4 h-4" />
+          Ubah Password
+        </Link>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          Keluar
+        </button>
+      </div>
+    </div>
+  );
+
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
     logout();
@@ -81,25 +106,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {userMenuOpen && (
               <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setUserMenuOpen(false)}
-                />
-                <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-700">
-                    <p className="text-sm font-medium text-white">{user?.name || 'Admin'}</p>
-                    <p className="text-xs text-slate-400">{user?.email || user?.role}</p>
-                  </div>
-                  <div className="py-1">
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Keluar
-                    </button>
-                  </div>
-                </div>
+                <div className="fixed inset-0 z-10" onClick={closeUserMenu} />
+                {userDropdown}
               </>
             )}
           </div>
@@ -144,25 +152,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {userMenuOpen && (
             <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setUserMenuOpen(false)}
-              />
-              <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-700">
-                  <p className="text-sm font-medium text-white">{user?.name || 'Admin'}</p>
-                  <p className="text-xs text-slate-400">{user?.email || user?.role}</p>
-                </div>
-                <div className="py-1">
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Keluar
-                  </button>
-                </div>
-              </div>
+              <div className="fixed inset-0 z-10" onClick={closeUserMenu} />
+              {userDropdown}
             </>
           )}
         </div>

@@ -16,9 +16,10 @@ export async function GET(req: NextRequest) {
     const mosque_ids = mosques.map((m: any) => m.id);
     let devices = [];
     if (mosque_ids.length > 0) {
+      const placeholders = mosque_ids.map(() => '?').join(',');
       const [deviceRows]: any = await pool.execute(
-        'SELECT id, mosque_id, name, is_online, is_active FROM devices WHERE mosque_id IN (?) ORDER BY name',
-        [mosque_ids]
+        `SELECT id, mosque_id, name, is_online, is_active FROM devices WHERE mosque_id IN (${placeholders}) ORDER BY name`,
+        mosque_ids
       );
       devices = deviceRows;
     }
