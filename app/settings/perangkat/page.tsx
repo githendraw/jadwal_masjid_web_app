@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -85,8 +85,11 @@ export default function PerangkatPage() {
     setPairingExpiry(null);
   };
 
+  useEffect(() => {
+    if (!user) router.push('/login');
+  }, [user, router]);
+
   if (!user) {
-    router.push('/login');
     return null;
   }
 

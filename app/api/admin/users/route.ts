@@ -8,12 +8,9 @@ export async function GET(req: NextRequest) {
   if (superadminError) return superadminError;
 
   try {
-    const [rows]: any = await pool.execute(`
-      SELECT u.id, u.email, u.role, u.mosque_id, m.name as mosque_name, u.is_active as status
-      FROM users u
-      LEFT JOIN mosques m ON u.mosque_id = m.id
-      ORDER BY u.id
-    `);
+    const [rows]: any = await pool.execute(
+      'SELECT u.id, u.name, u.email, u.role, u.mosque_id, m.name as mosque_name, u.is_active as status FROM users u LEFT JOIN mosques m ON u.mosque_id = m.id ORDER BY u.id'
+    );
     return NextResponse.json(rows);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -34,8 +31,8 @@ export async function POST(req: NextRequest) {
     const bcrypt = require('bcryptjs');
     const hash = await bcrypt.hash(password || 'password123', 10);
     const [result]: any = await pool.execute(
-      'INSERT INTO users (email, password_hash, role, mosque_id, is_active) VALUES (?, ?, ?, ?, ?)',
-      [email, hash, role || 'user', mosque_id || null, 1]
+      'INSERT INTO users (name, email, password_hash, role, mosque_id, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+      [name || '', email, hash, role || 'user', mosque_id || null, 1]
     );
     return NextResponse.json({ id: result.insertId, success: true });
   } catch (err) {

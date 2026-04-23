@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Pencil, Trash2, Plus, Users, CheckCircle, Shield } from 'lucide-react';
+import { Pencil, Trash2, Plus, Users, CheckCircle, Shield, AlertTriangle, X } from 'lucide-react';
 
 interface AdminUser {
   id: number;
   email: string;
   name: string;
-  role: 'superadmin' | 'admin' | 'owner' | 'user';
+  role: 'superadmin' | 'admin' | 'user';
   status: string;
   mosque_id: number | null;
 }
@@ -20,8 +20,9 @@ export default function PenggunaPage() {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [form, setForm] = useState({ email: '', name: '', password: '', role: 'user' as 'superadmin' | 'admin' | 'owner' | 'user', mosque_id: '' });
+  const [form, setForm] = useState({ email: '', name: '', password: '', role: 'user' as 'superadmin' | 'admin' | 'user', mosque_id: '' });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('');
@@ -73,7 +74,7 @@ export default function PenggunaPage() {
         headers: { 'Authorization': `Bearer ${user?.token}` },
       });
       const userData = await userRes.json();
-      const newStatus = userData.status === 'active' ? 'disabled' : 'active';
+      const newStatus = userData.status === 'active' || String(userData.status) === '1' ? 'disabled' : 'active';
       const res = await fetch(`/api/admin/users/${userId}/toggle-status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
@@ -86,6 +87,21 @@ export default function PenggunaPage() {
     }
   };
 
+  const handleDeleteUser = async (userId: number) => {
+    setShowDeleteConfirm(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/toggle-status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ status: 'disabled' }),
+      });
+      if (!res.ok) throw new Error('Failed to disable user');
+      refetch();
+    } catch (err) {
+      alert('Gagal menonaktifkan pengguna');
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editingUser) return;
     setLoading(true);
@@ -93,7 +109,7 @@ export default function PenggunaPage() {
       const res = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
-        body: JSON.stringify({ name: editingUser.name, role: editingUser.role, mosque_id: editingUser.mosque_id }),
+        body: JSON.stringify({ name: editingUser.name, role: editingUser.role, mosque_id: editingUser.mosque_id, status: editingUser.status }),
       });
       if (!res.ok) throw new Error('Failed to update');
       setShowModal(false);
@@ -105,8 +121,11 @@ export default function PenggunaPage() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    if (!user) router.push('/login');
+  }, [user, router]);
+
   if (!user) {
-    router.push('/login');
     return null;
   }
 
@@ -179,7 +198,7 @@ export default function PenggunaPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm">Akun Aktif</p>
-              <p className="text-2xl font-bold text-white">{(users || []).filter((u: AdminUser) => u.status === 'active').length}</p>
+              <p className="text-2xl font-bold text-white">{(users || []).filter((u: AdminUser) => u.status === 'active' || String(u.status) === '1').length}</p>
             </div>
             <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-green-400" />
@@ -200,25 +219,24 @@ export default function PenggunaPage() {
       </div>
 
       {/* Search + Filter */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="flex-1">
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input bg-slate-800/50 border-slate-700 text-white placeholder:text-muted-foreground"
+            className="input bg-slate-800/50 border-slate-700 text-white placeholder:text-muted-foreground w-full"
             placeholder="Cari email atau nama..."
           />
         </div>
         <select
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value)}
-          className="input bg-slate-800/50 border-slate-700 text-white w-36"
+          className="input bg-slate-800/50 border-slate-700 text-white sm:w-40"
         >
-          <option value="">Semua Role</option>
-          <option value="superadmin">Super Admin</option>
-          <option value="admin">Admin</option>
-          <option value="owner">Owner</option>
-          <option value="user">User</option>
+<option value="">Semua Role</option>
+            <option value="superadmin">Super Admin</option>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
         </select>
       </div>
 
@@ -244,31 +262,30 @@ export default function PenggunaPage() {
                     <span className={`badge ${
                       u.role === 'superadmin' ? 'badge-amber' :
                       u.role === 'admin' ? 'badge-emerald' :
-                      u.role === 'owner' ? 'badge-green' :
-                      'badge-amber'
+                      'badge-blue'
                     }`}>
                       {u.role}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1.5 text-xs ${
-                      u.status === 'active' ? 'text-green-400' : 'text-red-400'
+                      u.status === 'active' || String(u.status) === '1' ? 'text-green-400' : 'text-red-400'
                     }`}>
-                      <span className={`w-2 h-2 rounded-full ${u.status === 'active' ? 'bg-green-400' : 'bg-red-400'}`} />
-                      {u.status}
+                      <span className={`w-2 h-2 rounded-full ${u.status === 'active' || String(u.status) === '1' ? 'bg-green-400' : 'bg-red-400'}`} />
+                      {u.status === 'active' || String(u.status) === '1' ? 'Aktif' : 'Nonaktif'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => { setEditingUser(u); setShowModal(true); }}
-                        className="btn-ghost"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-transparent hover:border-slate-500 hover:bg-slate-800 transition-colors"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleToggleStatus(u.id)}
-                        className="btn-ghost text-red-400"
+                        onClick={() => setShowDeleteConfirm(u.id)}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-transparent hover:border-red-500 hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -280,6 +297,32 @@ export default function PenggunaPage() {
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+          <div className="card max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Konfirmasi Hapus</h2>
+                <p className="text-sm text-muted-foreground">Menonaktifkan pengguna ini</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              Pengguna akan diubah ke status "Nonaktif". Data tidak akan dihapus.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowDeleteConfirm(null)} className="btn-ghost">Batal</button>
+              <button onClick={() => handleDeleteUser(showDeleteConfirm)} className="bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg">
+                Nonaktifkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {showModal && editingUser && (
@@ -312,8 +355,18 @@ export default function PenggunaPage() {
                 >
                   <option value="superadmin">Super Admin</option>
                   <option value="admin">Admin</option>
-                  <option value="owner">Owner</option>
                   <option value="user">User</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Status</label>
+                <select
+                  value={editingUser.status}
+                  onChange={(e) => setEditingUser({ ...editingUser, status: e.target.value })}
+                  className="input mt-1 bg-slate-800/50 border-slate-700 text-white"
+                >
+                  <option value="active">Aktif</option>
+                  <option value="disabled">Nonaktif</option>
                 </select>
               </div>
             </div>
@@ -371,7 +424,6 @@ export default function PenggunaPage() {
                 >
                   <option value="superadmin">Super Admin</option>
                   <option value="admin">Admin</option>
-                  <option value="owner">Owner</option>
                   <option value="user">User</option>
                 </select>
               </div>

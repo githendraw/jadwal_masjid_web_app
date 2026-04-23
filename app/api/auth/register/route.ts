@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
 
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.execute(
-      'INSERT INTO users (email, password_hash, role, mosque_id, is_active) VALUES (?, ?, ?, ?, ?)',
-      [email, hash, 'user', finalMosqueId, 1]
+      'INSERT INTO users (name, email, password_hash, role, mosque_id, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+      [mosque_name || '', email, hash, 'user', finalMosqueId, 1]
     );
 
     return NextResponse.json({

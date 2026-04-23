@@ -10,11 +10,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const [rows]: any = await pool.execute(
-      `SELECT d.id AS device_uuid, d.mosque_id, m.name AS mosque_name, m.mosque_uuid,
-              m.settings, m.address, m.lat, m.long, m.calculation_method
-       FROM devices d
-       JOIN mosques m ON d.mosque_id = m.id
-       WHERE d.id = ?`,
+      'SELECT d.id AS device_uuid, d.mosque_id, m.name AS mosque_name, m.mosque_uuid, m.settings, m.address, m.lat, m.`long`, m.calculation_method FROM devices d JOIN mosques m ON d.mosque_id = m.id WHERE d.id = ?',
       [deviceUuid]
     );
 

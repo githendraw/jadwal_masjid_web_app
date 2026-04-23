@@ -11,9 +11,10 @@ USE jadwal_masjid;
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) DEFAULT '',
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('superadmin', 'user') DEFAULT 'user',
+  role ENUM('superadmin', 'admin', 'user') DEFAULT 'user',
   mosque_id INT,
   is_active BOOLEAN DEFAULT TRUE,
   pairing_token VARCHAR(64) UNIQUE,

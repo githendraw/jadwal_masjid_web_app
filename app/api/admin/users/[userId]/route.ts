@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
   const { userId } = await params;
   try {
     const [rows]: any = await pool.execute(
-      'SELECT id, email, role, mosque_id, is_active as status FROM users WHERE id = ?',
+      'SELECT id, name, email, role, mosque_id, is_active as status FROM users WHERE id = ?',
       [userId]
     );
     if (!rows || !rows.length) {
@@ -28,11 +28,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
   if (superadminError) return superadminError;
 
   const { userId } = await params;
-  const { name, role, mosque_id } = await req.json();
+  const { name, role, mosque_id, status } = await req.json();
   try {
+    const is_active = status === 'active' ? 1 : 0;
     await pool.execute(
-      'UPDATE users SET role = ?, mosque_id = ? WHERE id = ?',
-      [role, mosque_id, userId]
+      'UPDATE users SET name = ?, role = ?, mosque_id = ?, is_active = ? WHERE id = ?',
+      [name, role, mosque_id, is_active, userId]
     );
     return NextResponse.json({ success: true });
   } catch (err) {

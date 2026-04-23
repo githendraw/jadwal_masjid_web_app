@@ -214,8 +214,11 @@ export default function UmumPage() {
     setSaving(false);
   };
 
+  useEffect(() => {
+    if (!user) router.push('/login');
+  }, [user, router]);
+
   if (!user) {
-    router.push('/login');
     return null;
   }
 

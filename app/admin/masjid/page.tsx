@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
@@ -8,6 +9,12 @@ import { Building2, CheckCircle, Tv2 } from 'lucide-react';
 export default function MasjidPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
 
   const { data: mosques, isLoading } = useQuery({
     queryKey: ['admin-mosques'],
@@ -23,7 +30,6 @@ export default function MasjidPage() {
   });
 
   if (!user) {
-    router.push('/login');
     return null;
   }
 

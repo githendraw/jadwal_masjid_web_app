@@ -12,11 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const [rows]: any = await pool.execute(
-      `SELECT pc.*, m.name as mosque_name, m.mosque_uuid, m.settings,
-              m.lat, m.long, m.calculation_method, m.address
-       FROM pairing_codes pc
-       JOIN mosques m ON pc.mosque_id = m.id
-       WHERE pc.code = ?`,
+      'SELECT pc.*, m.name as mosque_name, m.mosque_uuid, m.settings, m.lat, m.`long`, m.calculation_method, m.address FROM pairing_codes pc JOIN mosques m ON pc.mosque_id = m.id WHERE pc.code = ?',
       [code]
     );
 

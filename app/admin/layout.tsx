@@ -15,6 +15,7 @@ import {
   LogOut,
   User,
   ChevronDown,
+  AlertTriangle,
 } from 'lucide-react';
 
 const navItems = [
@@ -31,6 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -44,6 +46,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => {
     setUserMenuOpen(false);
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
     router.push('/login');
   };
@@ -274,6 +281,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
       </aside>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+          <div className="card max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Keluar?</h2>
+                <p className="text-sm text-muted-foreground">Yakin ingin keluar dari akun ini?</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowLogoutConfirm(false)} className="btn-ghost">Batal</button>
+              <button onClick={confirmLogout} className="bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg">
+                Keluar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <div
