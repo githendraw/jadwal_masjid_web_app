@@ -108,7 +108,7 @@ export default function MasjidPage() {
             </thead>
             <tbody>
               {(mosques || []).map((m: any) => (
-                <tr key={m.mosque_id || m.id} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                <tr key={m.id} className="border-b border-border last:border-b-0 hover:bg-muted/20">
                   <td className="px-4 py-3 text-sm text-foreground font-medium">{m.mosque_name || m.name || '-'}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{m.mosque_slug || '-'}</td>
                   <td className="px-4 py-3">

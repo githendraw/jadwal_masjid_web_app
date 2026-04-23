@@ -9,9 +9,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const [rows]: any = await pool.execute(`
-      SELECT u.id, u.email, u.mosque_id, m.name as mosque_name, m.settings, m.is_online, m.is_active, m.mosque_slug, m.mosque_uuid
-      FROM users u LEFT JOIN mosques m ON u.mosque_id = m.id
-      ORDER BY m.name
+      SELECT id, mosque_uuid, mosque_slug, name as mosque_name, address, settings, lat, long, calculation_method, is_online, is_active, created_at
+      FROM mosques
+      ORDER BY name
     `);
     return NextResponse.json(rows);
   } catch (err) {
