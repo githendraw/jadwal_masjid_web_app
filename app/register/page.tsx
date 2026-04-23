@@ -25,7 +25,6 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [pairingToken, setPairingToken] = useState('');
   const [deviceUuid, setDeviceUuid] = useState('');
-  const [focused, setFocused] = useState({ mosqueName: false, email: false, password: false });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -71,13 +70,6 @@ export default function RegisterPage() {
     }
   };
 
-  const labelClass = (field: keyof typeof focused, hasValue: boolean = false) =>
-    `absolute left-3 transition-all duration-200 pointer-events-none ${
-      focused[field] || hasValue
-        ? '-top-2.5 text-xs bg-slate-900 px-1 text-muted-foreground'
-        : 'top-3 text-muted-foreground text-sm'
-    }`;
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background gradient */}
@@ -107,72 +99,77 @@ export default function RegisterPage() {
         {/* Register Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.2s both' }}>
           {/* Mosque Name */}
-          <div className="relative">
-            <Label htmlFor="mosqueName" className={labelClass('mosqueName')}>
-              Nama Masjid
+          <div className="space-y-2">
+            <Label htmlFor="mosqueName" className="text-white text-sm font-medium">
+              <span className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-emerald-400" />
+                Nama Masjid
+              </span>
             </Label>
             <Input
               id="mosqueName"
               type="text"
               {...register('mosqueName')}
-              onFocus={() => setFocused({ ...focused, mosqueName: true })}
-              onBlur={() => setFocused({ ...focused, mosqueName: false })}
-              className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0"
+              className="bg-slate-800/50 border-slate-700 text-white h-11 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-colors"
               placeholder="Masjid Al-Ikhlas"
             />
+            {errors.mosqueName && (
+              <p className="text-red-400 text-sm">{errors.mosqueName.message}</p>
+            )}
           </div>
-          {errors.mosqueName && (
-            <p className="text-red-400 text-sm -mt-3">{errors.mosqueName.message}</p>
-          )}
 
           {/* Email */}
-          <div className="relative">
-            <Label htmlFor="email" className={labelClass('email')}>
-              Email
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-white text-sm font-medium">
+              <span className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-emerald-400" />
+                Email
+              </span>
             </Label>
             <Input
               id="email"
               type="email"
               {...register('email')}
-              onFocus={() => setFocused({ ...focused, email: true })}
-              onBlur={() => setFocused({ ...focused, email: false })}
-              className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0"
+              className="bg-slate-800/50 border-slate-700 text-white h-11 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-colors"
               placeholder="email@example.com"
             />
+            {errors.email && (
+              <p className="text-red-400 text-sm">{errors.email.message}</p>
+            )}
           </div>
-          {errors.email && (
-            <p className="text-red-400 text-sm -mt-3">{errors.email.message}</p>
-          )}
 
           {/* Password */}
-          <div className="relative">
-            <Label htmlFor="password" className={labelClass('password')}>
-              Password
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-white text-sm font-medium">
+              <span className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-emerald-400" />
+                Password
+              </span>
             </Label>
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              {...register('password')}
-              onFocus={() => setFocused({ ...focused, password: true })}
-              onBlur={() => setFocused({ ...focused, password: false })}
-              className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0 pr-12"
-              placeholder="••••••••"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center"
-            >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-300" />
-              ) : (
-                <Eye className="h-5 w-5 text-slate-400 hover:text-slate-300" />
-              )}
-            </button>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                {...register('password')}
+                className="bg-slate-800/50 border-slate-700 text-white h-11 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-colors pr-12"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-0 top-1/2 -translate-y-1/2 pr-3 flex items-center"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+                ) : (
+                  <Eye className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+                )}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="text-red-400 text-sm">{errors.password.message}</p>
+            )}
           </div>
-          {errors.password && (
-            <p className="text-red-400 text-sm -mt-3">{errors.password.message}</p>
-          )}
 
           {/* Error */}
           {errorMessage && (

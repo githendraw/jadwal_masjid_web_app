@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: unknown }> {
   state = { hasError: false, error: null };
@@ -41,10 +42,7 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [focused, setFocused] = useState<{email: boolean, password: boolean}>({
-    email: false,
-    password: false,
-  });
+  const [showPassword, setShowPassword] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,13 +69,6 @@ function LoginForm() {
     }
     setLoading(false);
   };
-
-  const labelClass = (field: keyof typeof focused) => 
-    `absolute left-3 transition-all duration-200 pointer-events-none ${
-      focused[field] || (field === 'email' ? email.length > 0 : password.length > 0)
-        ? '-top-2.5 text-xs bg-slate-900 px-1 text-muted-foreground'
-        : 'top-3 text-muted-foreground text-sm'
-    }`;
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
@@ -108,37 +99,52 @@ function LoginForm() {
       {/* Login Form */}
       <form onSubmit={onSubmit} className="space-y-5" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.2s both' }}>
         {/* Email */}
-        <div className="relative">
-          <Label htmlFor="email" className={labelClass('email')}>
-            Email
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-white text-sm font-medium">
+            <span className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-emerald-400" />
+              Email
+            </span>
           </Label>
           <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            onFocus={() => setFocused({ ...focused, email: true })}
-            onBlur={() => setFocused({ ...focused, email: false })}
-            className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0 placeholder:text-muted-foreground"
+            className="bg-slate-800/50 border-slate-700 text-white h-11 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-colors"
             placeholder="admin@masjid.com"
           />
         </div>
 
         {/* Password */}
-        <div className="relative">
-          <Label htmlFor="password" className={labelClass('password')}>
-            Password
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-white text-sm font-medium">
+            <span className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-emerald-400" />
+              Password
+            </span>
           </Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onFocus={() => setFocused({ ...focused, password: true })}
-            onBlur={() => setFocused({ ...focused, password: false })}
-            className="bg-slate-800/50 border-slate-700 text-white h-11 pt-6 placeholder:opacity-0 placeholder:text-muted-foreground"
-            placeholder="••••••••"
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-slate-800/50 border-slate-700 text-white h-11 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-colors pr-12"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 pr-3 flex items-center"
+            >
+              {showPassword ? (
+                <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+              ) : (
+                <Eye className="h-5 w-5 text-slate-400 hover:text-slate-300" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Error */}
