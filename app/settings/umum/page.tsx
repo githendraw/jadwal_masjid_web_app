@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Save, Pencil, XCircle, Loader2, MessageSquare, Monitor, RefreshCw } from 'lucide-react';
+import { Building2, MapPin, Save, Pencil, XCircle, Loader2, MessageSquare } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 const TABS = [
   { id: 'info', label: 'Informasi', icon: Building2 },
@@ -31,6 +34,7 @@ export default function UmumPage() {
   const [editField, setEditField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('info');
   const [toast, setToast] = useState<string | null>(null);
+  const [mapFullscreen, setMapFullscreen] = useState(false);
 
   const [formState, setFormState] = useState({
     name: '',
@@ -79,9 +83,25 @@ export default function UmumPage() {
     };
   }, [socket, queryClient]);
 
+  const handleMapChange = (newLat: number, newLng: number) => {
+    setFormState(prev => ({
+      ...prev,
+      lat: String(newLat),
+      long: String(newLng),
+    }));
+  };
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const openMapFullscreen = () => {
+    setMapFullscreen(true);
+  };
+
+  const closeMapFullscreen = () => {
+    setMapFullscreen(false);
   };
 
   const saveField = async (field: string, value: string | number) => {
@@ -364,6 +384,35 @@ export default function UmumPage() {
             </div>
           )}
 
+          {hasCoords ? (
+            <div className={`relative rounded-lg overflow-hidden ${mapFullscreen ? 'fixed inset-0 z-[9999] bg-slate-900' : ''}`}>
+              <div style={{ height: mapFullscreen ? '100vh' : '256px' }}>
+                <MapPicker
+                  key={`${formState.lat}-${formState.long}`}
+                  lat={parseFloat(formState.lat)}
+                  lng={parseFloat(formState.long)}
+                  onChange={handleMapChange}
+                  fullscreen={mapFullscreen}
+                  onCloseFullscreen={closeMapFullscreen}
+                />
+              </div>
+              {!mapFullscreen && (
+                <button
+                  onClick={openMapFullscreen}
+                  className="absolute bottom-2 right-3 p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-lg"
+                  style={{ zIndex: 1000 }}
+                  title="Buka peta fullscreen"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="w-full h-64 rounded-lg bg-slate-800/50 flex items-center justify-center">
+              <p className="text-slate-400 text-sm">Klik tombol <MapPin className="inline w-4 h-4" /> untuk mendapatkan koordinat</p>
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-foreground">Metode Perhitungan</label>
             <select
@@ -426,6 +475,7 @@ export default function UmumPage() {
   };
 
   return (
+    <>
     <div className="max-w-4xl mx-auto" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
       {toast && (
         <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
@@ -484,5 +534,6 @@ export default function UmumPage() {
         }
       `}</style>
     </div>
+  </>
   );
 }
