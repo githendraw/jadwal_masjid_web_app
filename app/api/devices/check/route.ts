@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
         location: row.address || settings.location || '',
  runningText1: settings.runningText1 || '',
          runningText2: settings.runningText2 || '',
+        background: settings.background || '',
         lat: row.lat,
         long: row.long,
         calculationMethod: row.calculation_method || 'KEMENAG',
