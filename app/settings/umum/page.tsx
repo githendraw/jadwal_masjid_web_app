@@ -229,20 +229,57 @@ export default function UmumPage() {
     setSaving(false);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
       showToast('File terlalu besar (max 10MB)');
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setBackgroundPreview(base64);
-      setFormState(prev => ({ ...prev, background: base64 }));
-    };
-    reader.readAsDataURL(file);
+
+    const compressed = await compressImage(file);
+    setBackgroundPreview(compressed);
+    setFormState(prev => ({ ...prev, background: compressed }));
+  };
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+
+          const maxWidth = 1920;
+          const maxHeight = 1080;
+          let width = img.naturalWidth;
+          let height = img.naturalHeight;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressed = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(compressed);
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const saveBackground = async () => {
@@ -490,11 +527,12 @@ export default function UmumPage() {
     }
 
    if (activeTab === 'background') {
+      const hasBackground = backgroundPreview || formState.background;
       return (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
-            <label className="text-sm font-medium text-foreground">Upload Background</label>
-            <p className="text-muted-foreground text-xs mb-2">Pilih gambar background untuk TV masjid (max 10MB)</p>
+            <label className="text-sm font-medium text-foreground">Background TV</label>
+            <p className="text-muted-foreground text-xs mb-4">Gambar latar belakang untuk tampilan TV masjid (max 10MB, akan di-compress otomatis)</p>
             <input
               type="file"
               accept="image/*"
@@ -502,28 +540,42 @@ export default function UmumPage() {
               onChange={handleFileSelect}
               className="hidden"
             />
-            <button
+            <div
               onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-3 rounded-lg transition-colors"
+              className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all"
             >
-              <ImageIcon className="w-5 h-5" />
-              Pilih Gambar
-            </button>
+              <ImageIcon className="w-12 h-12 mx-auto text-slate-500 mb-3" />
+              <p className="text-white font-medium">Klik untuk pilih gambar</p>
+              <p className="text-muted-foreground text-xs mt-1">PNG, JPG, WebP</p>
+            </div>
           </div>
 
-          {backgroundPreview && (
-            <div className="space-y-2">
-              <p className="text-muted-foreground text-sm">Preview:</p>
-              <div className="relative rounded-lg overflow-hidden bg-slate-800/50">
-                <img src={backgroundPreview} alt="Background Preview" className="w-full h-auto max-h-96 object-contain" />
+          {hasBackground && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">Preview</label>
+                {hasBackground && (
+                  <button
+                    onClick={() => {
+                      setBackgroundPreview(null);
+                      setFormState(prev => ({ ...prev, background: '' }));
+                    }}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </div>
+              <div className="rounded-xl overflow-hidden border border-slate-700 shadow-lg">
+                <img src={backgroundPreview || formState.background} alt="Background Preview" className="w-full h-auto max-h-[500px] object-cover bg-black" />
               </div>
             </div>
           )}
 
           <button
             onClick={saveBackground}
-            disabled={saving || uploading || !backgroundPreview}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+            disabled={saving || !hasBackground}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Simpan & Update TV
