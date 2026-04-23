@@ -31,7 +31,7 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id);
 
-    socket.on('join_room', (mosqueUuid) => {
+    socket.on('join_room', async (mosqueUuid) => {
       socket.join(mosqueUuid);
       console.log(`Socket joined room: ${mosqueUuid}`);
 
@@ -40,11 +40,22 @@ app.prepare().then(() => {
       if (deviceUuid) {
         socket.data.device_uuid = deviceUuid;
         socket.data.mosque_uuid = mosqueUuid;
-        pool.execute('UPDATE devices SET is_online = 1, last_seen_at = NOW() WHERE id = ?', [deviceUuid]).then(([result]: any) => {
+        try {
+          const [result]: any = await pool.execute('UPDATE devices SET is_online = 1, last_seen_at = NOW() WHERE id = ?', [deviceUuid]);
           console.log('Device online update:', deviceUuid, 'affectedRows:', result?.affectedRows);
-        }).catch((err) => {
+          if (result?.affectedRows === 0) {
+            const [mosqueRows]: any = await pool.execute('SELECT id FROM mosques WHERE mosque_uuid = ?', [mosqueUuid]);
+            if (mosqueRows && mosqueRows.length > 0) {
+              const mosqueId = mosqueRows[0].id;
+              await pool.execute('INSERT INTO devices (id, mosque_id, name, is_online, last_seen_at) VALUES (?, ?, ?, 1, NOW()) ON DUPLICATE KEY UPDATE is_online = 1, last_seen_at = NOW()', [deviceUuid, mosqueId, `TV ${Date.now().toString(36).slice(-4).toUpperCase()}`]);
+              console.log('Auto-registered device:', deviceUuid, 'to mosque:', mosqueId);
+            } else {
+              console.log('Mosque not found for uuid:', mosqueUuid);
+            }
+          }
+        } catch (err) {
           console.error('Device online update error:', err);
-        });
+        }
       } else {
         console.log('No device_uuid in socket auth');
       }
