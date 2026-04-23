@@ -3,14 +3,16 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import MarkerIcon from 'leaflet/dist/images/marker-icon.png';
-import MarkerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import MarkerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-L.Icon.Default.mergeOptions({
-  iconUrl: MarkerIcon,
-  iconRetinaUrl: MarkerIcon2x,
-  shadowUrl: MarkerShadow,
+const customIcon = L.divIcon({
+  html: `<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41">
+    <path d="M12.5 0C5.6 0 0 5.6 0 12.5c0 9.4 12.5 28.5 12.5 28.5S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0z" fill="#ef4444" stroke="#991b1b" stroke-width="1"/>
+    <circle cx="12.5" cy="12.5" r="5" fill="white"/>
+  </svg>`,
+  iconSize: [25, 41],
+  iconAnchor: [12.5, 41],
+  popupAnchor: [0, -41],
+  className: '',
 });
 
 interface MapPickerProps {
@@ -34,7 +36,7 @@ export default function MapPicker({ lat, lng, onChange, fullscreen, onCloseFulls
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(m);
 
-    const marker = L.marker([lat, lng], { draggable: true }).addTo(m);
+    const marker = L.marker([lat, lng], { draggable: true, icon: customIcon }).addTo(m);
 
     marker.on('dragend', () => {
       const pos = marker.getLatLng();
