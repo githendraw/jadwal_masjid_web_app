@@ -5,29 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MapPin, Save, Pencil, XCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Building2, MapPin, Save, Pencil, XCircle, Loader2, MessageSquare, Monitor, RefreshCw } from 'lucide-react';
 
-function SectionCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="card rounded-xl">
-      <div className="card-header">
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
-        {description && <p className="text-muted-foreground text-sm mt-1">{description}</p>}
-      </div>
-      <div className="card-content space-y-5">
-        {children}
-      </div>
-    </div>
-  );
-}
+const TABS = [
+  { id: 'info', label: 'Informasi', icon: Building2 },
+  { id: 'location', label: 'Lokasi', icon: MapPin },
+  { id: 'running-text', label: 'Running Text', icon: MessageSquare },
+];
 
 const CALCULATION_METHODS = [
   { value: 'KEMENAG', label: 'KEMENAG (Indonesia)' },
@@ -45,6 +29,7 @@ export default function UmumPage() {
   const [saving, setSaving] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const [editField, setEditField] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('info');
   const [toast, setToast] = useState<string | null>(null);
 
   const [formState, setFormState] = useState({
@@ -250,23 +235,24 @@ export default function UmumPage() {
     );
   }
 
-  return (
-    <div className="space-y-6" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
-          {toast}
-        </div>
-      )}
+  const InputField = ({ label, value, onChange, placeholder, disabled, type = 'text', className = '' }: any) => (
+    <div>
+      <label className="text-sm font-medium text-foreground">{label}</label>
+      <input
+        value={value}
+        onChange={onChange}
+        type={type}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={`input ${className}`}
+      />
+    </div>
+  );
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white mb-1">Pengaturan Umum</h1>
-        <p className="text-muted-foreground">Kelola informasi masjid dan pengaturan tampilan TV</p>
-      </div>
-
-      {/* Informasi Masjid */}
-      <SectionCard title="Informasi Masjid" description="Nama dan alamat masjid yang tampil di TV">
-        <div className="space-y-4">
-          {/* Nama Masjid */}
+  const TabContent = () => {
+    if (activeTab === 'info') {
+      return (
+        <div className="space-y-5">
           <div>
             <label className="text-sm font-medium text-foreground">Nama Masjid</label>
             <div className="flex gap-2 mt-1">
@@ -274,7 +260,7 @@ export default function UmumPage() {
                 value={formState.name}
                 onChange={e => setFormState(prev => ({ ...prev, name: e.target.value }))}
                 className="input flex-1 bg-slate-800/50 border-slate-700 text-white"
-                placeholder="Masjid Al-Ikhlas"
+                placeholder="Masukkan nama masjid anda"
                 disabled={editField !== 'name'}
               />
               {editField === 'name' ? (
@@ -297,7 +283,6 @@ export default function UmumPage() {
             </div>
           </div>
 
-          {/* Alamat */}
           <div>
             <label className="text-sm font-medium text-foreground">Alamat</label>
             <div className="flex gap-2 mt-1">
@@ -305,7 +290,7 @@ export default function UmumPage() {
                 value={formState.address}
                 onChange={e => setFormState(prev => ({ ...prev, address: e.target.value }))}
                 className="input flex-1 bg-slate-800/50 border-slate-700 text-white"
-                placeholder="Jl. Karanten Kulon III, Arcamanik, Bandung"
+                placeholder="Masukkan alamat masjid anda"
                 disabled={editField !== 'address'}
               />
               {editField === 'address' ? (
@@ -328,12 +313,12 @@ export default function UmumPage() {
             </div>
           </div>
         </div>
-      </SectionCard>
+      );
+    }
 
-      {/* Lokasi & Metode Perhitungan */}
-      <SectionCard title="Lokasi & Perhitungan Waktu Sholat" description="Koordinat untuk menghitung jadwal sholat otomatis menggunakan Adhan.js">
-        <div className="space-y-4">
-          {/* Get Location Button */}
+    if (activeTab === 'location') {
+      return (
+        <div className="space-y-5">
           <button
             onClick={handleGetGeoLocation}
             disabled={geoLoading}
@@ -355,33 +340,30 @@ export default function UmumPage() {
             Klik tombol di atas untuk mendapatkan koordinat lokasi masjid secara otomatis dari GPS HP Anda
           </p>
 
-          {/* Latitude */}
           <div>
             <label className="text-sm font-medium text-foreground">Latitude</label>
             <input
               value={formState.lat}
               onChange={e => setFormState(prev => ({ ...prev, lat: e.target.value }))}
               className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
-              placeholder="-6.914744"
+              placeholder="-6.200000 (contoh: -6.2 untuk Jakarta)"
               type="text"
             />
             <p className="text-muted-foreground text-xs mt-1">Rentang: -90 sampai 90. Negatif = Selatan khatulistiwa</p>
           </div>
 
-          {/* Longitude */}
           <div>
             <label className="text-sm font-medium text-foreground">Longitude</label>
             <input
               value={formState.long}
               onChange={e => setFormState(prev => ({ ...prev, long: e.target.value }))}
               className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
-              placeholder="107.641384"
+              placeholder="106.816667 (contoh: 106.8 untuk Jakarta)"
               type="text"
             />
             <p className="text-muted-foreground text-xs mt-1">Rentang: -180 sampai 180. Positif = Timur Greenwich</p>
           </div>
 
-          {/* Calculation Method */}
           <div>
             <label className="text-sm font-medium text-foreground">Metode Perhitungan</label>
             <select
@@ -398,7 +380,6 @@ export default function UmumPage() {
             </p>
           </div>
 
-          {/* Save Lat/Long/Method */}
           <button
             onClick={saveLatLong}
             disabled={saving}
@@ -408,43 +389,87 @@ export default function UmumPage() {
             Simpan Lokasi & Update TV
           </button>
         </div>
-      </SectionCard>
+      );
+    }
 
-      {/* Running Text / Pengumuman */}
-      <SectionCard title="Running Text" description="Teks berjalan yang tampil di bagian bawah layar TV">
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-foreground">Pengumuman Jumat</label>
-            <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris atas (latar kuning)</p>
-            <textarea
-              value={formState.pengumumanJumat}
-              onChange={e => setFormState(prev => ({ ...prev, pengumumanJumat: e.target.value }))}
-              className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-              placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground">Pengumuman Kajian</label>
-            <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris bawah (latar merah)</p>
-            <textarea
-              value={formState.pengumumanKajian}
-              onChange={e => setFormState(prev => ({ ...prev, pengumumanKajian: e.target.value }))}
-              className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-              placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
-            />
-          </div>
-
-          <button
-            onClick={saveRunningText}
-            disabled={saving}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan & Update TV
-          </button>
+    return (
+      <div className="space-y-5">
+        <div>
+          <label className="text-sm font-medium text-foreground">Pengumuman Jumat</label>
+          <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris atas (latar kuning)</p>
+          <textarea
+            value={formState.pengumumanJumat}
+            onChange={e => setFormState(prev => ({ ...prev, pengumumanJumat: e.target.value }))}
+            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+            placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
+          />
         </div>
-      </SectionCard>
+
+        <div>
+          <label className="text-sm font-medium text-foreground">Pengumuman Kajian</label>
+          <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris bawah (latar merah)</p>
+          <textarea
+            value={formState.pengumumanKajian}
+            onChange={e => setFormState(prev => ({ ...prev, pengumumanKajian: e.target.value }))}
+            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+            placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
+          />
+        </div>
+
+        <button
+          onClick={saveRunningText}
+          disabled={saving}
+          className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Simpan & Update TV
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto" style={{ animation: 'fadeSlideUp 0.3s ease-out' }}>
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
+          {toast}
+        </div>
+      )}
+
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white mb-1">Pengaturan Umum</h1>
+        <p className="text-muted-foreground">Kelola informasi masjid dan pengaturan tampilan TV</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="card rounded-xl">
+        <div className="border-b border-border px-4">
+          <div className="flex gap-1 -mb-px overflow-x-auto">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
+                    isActive
+                      ? 'text-emerald-400 border-b-2 border-emerald-400'
+                      : 'text-slate-400 hover:text-white hover:text-muted-foreground'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="whitespace-nowrap">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="card-content p-6">
+          <TabContent />
+        </div>
+      </div>
 
       <style>{`
         @keyframes fadeSlideUp {
