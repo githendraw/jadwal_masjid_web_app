@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Save, Pencil, XCircle, Loader2, MessageSquare, Image as ImageIcon } from 'lucide-react';
+import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
@@ -32,7 +32,6 @@ export default function UmumPage() {
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
-  const [editField, setEditField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('info');
   const [toast, setToast] = useState<string | null>(null);
   const [mapFullscreen, setMapFullscreen] = useState(false);
@@ -112,34 +111,6 @@ export default function UmumPage() {
 
   const closeMapFullscreen = () => {
     setMapFullscreen(false);
-  };
-
-  const saveField = async (field: string, value: string | number) => {
-    setSaving(true);
-    try {
-      const body: Record<string, any> = {};
-      body[field] = value;
-      if (field === 'address') {
-        body.runningText1 = formState.runningText1;
-        body.runningText2 = formState.runningText2;
-      }
-      const res = await fetch('/api/mosque/update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        showToast(data.error || 'Gagal menyimpan');
-        return;
-      }
-      showToast('Berhasil disimpan');
-      setEditField(null);
-      queryClient.invalidateQueries({ queryKey: ['mosque'] });
-    } catch {
-      showToast('Gagal menyimpan');
-    }
-    setSaving(false);
   };
 
   const handleGetGeoLocation = () => {
@@ -343,88 +314,57 @@ export default function UmumPage() {
     );
   }
 
-  const InputField = ({ label, value, onChange, placeholder, disabled, type = 'text', className = '' }: any) => (
-    <div>
-      <label className="text-sm font-medium text-foreground">{label}</label>
-      <input
-        value={value}
-        onChange={onChange}
-        type={type}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={`input ${className}`}
-      />
-    </div>
-  );
-
   const TabContent = () => {
     if (activeTab === 'info') {
       return (
         <div className="space-y-5">
           <div>
             <label className="text-sm font-medium text-foreground">Nama Masjid</label>
-            <div className="flex gap-2 mt-1">
-              <input
-                value={formState.name}
-                onChange={e => setFormState(prev => ({ ...prev, name: e.target.value }))}
-                className="input flex-1 bg-slate-800/50 border-slate-700 text-white"
-                placeholder="Masukkan nama masjid anda"
-                disabled={editField !== 'name'}
-              />
-              {editField === 'name' ? (
-                <button
-                  onClick={() => saveField('name', formState.name)}
-                  disabled={saving}
-                  className="btn-primary flex items-center gap-1 px-3 py-1.5 text-sm"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Simpan
-                </button>
-              ) : (
-                <button
-                  onClick={() => setEditField('name')}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-2"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+            <input
+              value={formState.name}
+              onChange={e => setFormState(prev => ({ ...prev, name: e.target.value }))}
+              className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
+              placeholder="Masukkan nama masjid anda"
+            />
           </div>
 
           <div>
             <label className="text-sm font-medium text-foreground">Alamat</label>
-            <div className="flex gap-2 mt-1">
-              <input
-                value={formState.address}
-                onChange={e => setFormState(prev => ({ ...prev, address: e.target.value }))}
-                className="input flex-1 bg-slate-800/50 border-slate-700 text-white"
-                placeholder="Masukkan alamat masjid anda"
-                disabled={editField !== 'address'}
-              />
-              {editField === 'address' ? (
-                <button
-                  onClick={() => saveField('address', formState.address)}
-                  disabled={saving}
-                  className="btn-primary flex items-center gap-1 px-3 py-1.5 text-sm"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Simpan
-                </button>
-              ) : (
-                <button
-                  onClick={() => setEditField('address')}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-2"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+            <input
+              value={formState.address}
+              onChange={e => setFormState(prev => ({ ...prev, address: e.target.value }))}
+              className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full"
+              placeholder="Masukkan alamat masjid anda"
+            />
           </div>
+
+          <button
+            onClick={() => {
+              setSaving(true);
+              fetch('/api/mosque/update', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+                body: JSON.stringify({ name: formState.name, address: formState.address }),
+              }).then(res => {
+                if (!res.ok) return res.json().then(d => { throw d; });
+                return res.json();
+              }).then(() => {
+                showToast('Informasi berhasil disimpan');
+                queryClient.invalidateQueries({ queryKey: ['mosque'] });
+              }).catch(() => {
+                showToast('Gagal menyimpan');
+              }).finally(() => setSaving(false));
+            }}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Simpan Informasi & Update TV
+          </button>
         </div>
       );
     }
-
-    if (activeTab === 'location') {
+              if (activeTab === 'location') {
       const hasCoords = formState.lat && formState.long;
       return (
         <div className="space-y-6">
