@@ -36,10 +36,17 @@ app.prepare().then(() => {
       console.log(`Socket joined room: ${mosqueUuid}`);
 
       const deviceUuid = socket.handshake.auth?.device_uuid || socket.handshake.query?.device_uuid;
+      console.log('Device UUID from socket auth:', deviceUuid);
       if (deviceUuid) {
         socket.data.device_uuid = deviceUuid;
         socket.data.mosque_uuid = mosqueUuid;
-        pool.execute('UPDATE devices SET is_online = 1, last_seen_at = NOW() WHERE id = ?', [deviceUuid]).catch(() => {});
+        pool.execute('UPDATE devices SET is_online = 1, last_seen_at = NOW() WHERE id = ?', [deviceUuid]).then(([result]: any) => {
+          console.log('Device online update:', deviceUuid, 'affectedRows:', result?.affectedRows);
+        }).catch((err) => {
+          console.error('Device online update error:', err);
+        });
+      } else {
+        console.log('No device_uuid in socket auth');
       }
     });
 
