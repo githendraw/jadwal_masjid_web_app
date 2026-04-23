@@ -14,11 +14,11 @@ export async function POST(req: NextRequest) {
       const [existing]: any = await pool.execute('SELECT id, mosque_uuid FROM mosques WHERE mosque_slug = ?', [slug]);
       if (!existing || !(existing as any[]).length) {
         const newMosqueUuid = crypto.randomUUID();
-        const defaultSettings = JSON.stringify({
-          pengumumanJumat: 'SALDO KAS MASJID - TERIMAKASIH',
-          pengumumanKajian: 'BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI',
-          location: '',
-        });
+      const defaultSettings = JSON.stringify({
+         runningText1: 'SALDO KAS MASJID - TERIMAKASIH',
+         runningText2: 'BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI',
+         location: '',
+       });
         try {
           const [newMosque] = await pool.execute(
             'INSERT INTO mosques (name, mosque_slug, mosque_uuid, settings, calculation_method) VALUES (?, ?, ?, ?, ?)',

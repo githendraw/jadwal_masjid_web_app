@@ -19,8 +19,8 @@ export async function emitConfigUpdate(mosqueId: number) {
     io.to(mosque.mosque_uuid).emit('config_update', {
       mosqueName: mosque.name,
       location: mosque.address || settings.location || '',
-      pengumumanJumat: settings.pengumumanJumat || '',
-      pengumumanKajian: settings.pengumumanKajian || '',
+      runningText1: settings.runningText1 || '',
+      runningText2: settings.runningText2 || '',
       lat: mosque.lat,
       long: mosque.long,
       calculationMethod: mosque.calculation_method || 'KEMENAG',

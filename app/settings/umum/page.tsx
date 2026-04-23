@@ -38,8 +38,8 @@ export default function UmumPage() {
     lat: '',
     long: '',
     calculationMethod: 'KEMENAG',
-    pengumumanJumat: '',
-    pengumumanKajian: '',
+    runningText1: '',
+    runningText2: '',
   });
 
   const { data: mosque, isLoading, error: mosqueError } = useQuery({
@@ -63,8 +63,8 @@ export default function UmumPage() {
         lat: mosque.latitude != null ? String(mosque.latitude) : '',
         long: mosque.longitude != null ? String(mosque.longitude) : '',
         calculationMethod: mosque.calculation_method || 'KEMENAG',
-        pengumumanJumat: mosque.pengumumanJumat || '',
-        pengumumanKajian: mosque.pengumumanKajian || '',
+        runningText1: mosque.runningText1 || '',
+        runningText2: mosque.runningText2 || '',
       });
     }
   }, [mosque]);
@@ -90,8 +90,8 @@ export default function UmumPage() {
       const body: Record<string, any> = {};
       body[field] = value;
       if (field === 'address') {
-        body.pengumumanJumat = formState.pengumumanJumat;
-        body.pengumumanKajian = formState.pengumumanKajian;
+        body.runningText1 = formState.runningText1;
+        body.runningText2 = formState.runningText2;
       }
       const res = await fetch('/api/mosque/update', {
         method: 'PUT',
@@ -182,8 +182,8 @@ export default function UmumPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({
-          pengumumanJumat: formState.pengumumanJumat,
-          pengumumanKajian: formState.pengumumanKajian,
+          runningText1: formState.runningText1,
+          runningText2: formState.runningText2,
         }),
       });
       if (!res.ok) {
@@ -395,25 +395,25 @@ export default function UmumPage() {
     return (
       <div className="space-y-5">
         <div>
-          <label className="text-sm font-medium text-foreground">Pengumuman Jumat</label>
+          <label className="text-sm font-medium text-foreground">runningText1</label>
           <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris atas (latar kuning)</p>
-          <textarea
-            value={formState.pengumumanJumat}
-            onChange={e => setFormState(prev => ({ ...prev, pengumumanJumat: e.target.value }))}
-            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-            placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
-          />
+         <textarea
+             value={formState.runningText1}
+             onChange={e => setFormState(prev => ({ ...prev, runningText1: e.target.value }))}
+             className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+             placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
+           />
         </div>
 
         <div>
-          <label className="text-sm font-medium text-foreground">Pengumuman Kajian</label>
+          <label className="text-sm font-medium text-foreground">runningText2</label>
           <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris bawah (latar merah)</p>
-          <textarea
-            value={formState.pengumumanKajian}
-            onChange={e => setFormState(prev => ({ ...prev, pengumumanKajian: e.target.value }))}
-            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-            placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
-          />
+      <textarea
+             value={formState.runningText2}
+             onChange={e => setFormState(prev => ({ ...prev, runningText2: e.target.value }))}
+             className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+             placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
+           />
         </div>
 
         <button

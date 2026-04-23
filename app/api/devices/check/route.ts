@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
       settings: {
         mosqueName: row.mosque_name,
         location: row.address || settings.location || '',
-        pengumumanJumat: settings.pengumumanJumat || '',
-        pengumumanKajian: settings.pengumumanKajian || '',
+ runningText1: settings.runningText1 || '',
+         runningText2: settings.runningText2 || '',
         lat: row.lat,
         long: row.long,
         calculationMethod: row.calculation_method || 'KEMENAG',

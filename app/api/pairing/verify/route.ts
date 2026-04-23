@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
       settings: {
         mosqueName: pairing.mosque_name,
         location: pairing.address || dbSettings.location || '',
-        pengumumanJumat: dbSettings.pengumumanJumat || '',
-        pengumumanKajian: dbSettings.pengumumanKajian || '',
+  runningText1: dbSettings.runningText1 || '',
+         runningText2: dbSettings.runningText2 || '',
         lat: pairing.lat,
         long: pairing.long,
         calculationMethod: pairing.calculation_method || 'KEMENAG',

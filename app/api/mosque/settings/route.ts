@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
     const settings = typeof row.settings === 'string' ? JSON.parse(row.settings) : row.settings || {};
     return NextResponse.json({
       ...row,
-      pengumumanJumat: settings.pengumumanJumat || '',
-      pengumumanKajian: settings.pengumumanKajian || '',
+  runningText1: settings.runningText1 || '',
+       runningText2: settings.runningText2 || '',
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
