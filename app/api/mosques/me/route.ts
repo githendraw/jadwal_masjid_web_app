@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { authenticateToken } from '@/lib/auth-middleware';
+import { handleCors, corsResponse } from '@/lib/cors';
 
 export async function GET(req: NextRequest) {
+  const cors = handleCors(req);
+  if (cors) return cors;
   const user = authenticateToken(req);
   if (!user || !user.mosque_id) {
     return NextResponse.json({ error: 'No token provided' }, { status: 401 });
