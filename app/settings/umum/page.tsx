@@ -317,52 +317,52 @@ export default function UmumPage() {
     }
 
     if (activeTab === 'location') {
+      const hasCoords = formState.lat && formState.long;
       return (
-        <div className="space-y-5">
-          <button
-            onClick={handleGetGeoLocation}
-            disabled={geoLoading}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-          >
-            {geoLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Mendapatkan lokasi...
-              </>
-            ) : (
-              <>
-                <MapPin className="w-4 h-4" />
-                Dapatkan Lat/Long Otomatis
-              </>
-            )}
-          </button>
-          <p className="text-muted-foreground text-xs">
-            Klik tombol di atas untuk mendapatkan koordinat lokasi masjid secara otomatis dari GPS HP Anda
-          </p>
-
-          <div>
-            <label className="text-sm font-medium text-foreground">Latitude</label>
-            <input
-              value={formState.lat}
-              onChange={e => setFormState(prev => ({ ...prev, lat: e.target.value }))}
-              className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
-              placeholder="-6.200000 (contoh: -6.2 untuk Jakarta)"
-              type="text"
-            />
-            <p className="text-muted-foreground text-xs mt-1">Rentang: -90 sampai 90. Negatif = Selatan khatulistiwa</p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Latitude</label>
+              <input
+                value={formState.lat}
+                onChange={e => setFormState(prev => ({ ...prev, lat: e.target.value }))}
+                className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
+                placeholder="-6.200000"
+                type="text"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Longitude</label>
+              <div className="flex gap-2 mt-1">
+                <input
+                  value={formState.long}
+                  onChange={e => setFormState(prev => ({ ...prev, long: e.target.value }))}
+                  className="input flex-1 bg-slate-800/50 border-slate-700 text-white font-mono"
+                  placeholder="106.816667"
+                  type="text"
+                />
+                <button
+                  onClick={handleGetGeoLocation}
+                  disabled={geoLoading}
+                  className="shrink-0 w-10 h-10 flex items-center justify-center bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                  title="Deteksi lokasi dari GPS browser"
+                >
+                  {geoLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                  ) : (
+                    <MapPin className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground">Longitude</label>
-            <input
-              value={formState.long}
-              onChange={e => setFormState(prev => ({ ...prev, long: e.target.value }))}
-              className="input mt-1 bg-slate-800/50 border-slate-700 text-white font-mono"
-              placeholder="106.816667 (contoh: 106.8 untuk Jakarta)"
-              type="text"
-            />
-            <p className="text-muted-foreground text-xs mt-1">Rentang: -180 sampai 180. Positif = Timur Greenwich</p>
-          </div>
+          {hasCoords && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              Koordinat terdeteksi — klik "Simpan Lokasi" untuk menyimpan
+            </div>
+          )}
 
           <div>
             <label className="text-sm font-medium text-foreground">Metode Perhitungan</label>
@@ -375,9 +375,6 @@ export default function UmumPage() {
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
-            <p className="text-muted-foreground text-xs mt-1">
-              KEMENAG = Indonesia standar, Jakarta IST = Jakarta spesifik
-            </p>
           </div>
 
           <button
