@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, address, lat, long, calculation_method, runningText1, runningText2 } = body;
+    const { name, address, lat, long, calculation_method, runningText1, runningText2, background } = body;
 
     const columns: string[] = [];
     const values: any[] = [];
@@ -66,9 +66,14 @@ export async function PUT(req: NextRequest) {
      }
 
      if (runningText2 !== undefined) {
-       settingsUpdateData.runningText2 = runningText2;
-       needSettingsUpdate = true;
-     }
+        settingsUpdateData.runningText2 = runningText2;
+        needSettingsUpdate = true;
+      }
+
+      if (background !== undefined) {
+        settingsUpdateData.background = background;
+        needSettingsUpdate = true;
+      }
 
     if (columns.length === 0 && !needSettingsUpdate) {
       return NextResponse.json({ error: 'Tidak ada field yang diupdate' }, { status: 400 });

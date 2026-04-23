@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Save, Pencil, XCircle, Loader2, MessageSquare } from 'lucide-react';
+import { Building2, MapPin, Save, Pencil, XCircle, Loader2, MessageSquare, Image as ImageIcon } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
@@ -14,6 +14,7 @@ const TABS = [
   { id: 'info', label: 'Informasi', icon: Building2 },
   { id: 'location', label: 'Lokasi', icon: MapPin },
   { id: 'running-text', label: 'Running Text', icon: MessageSquare },
+  { id: 'background', label: 'Background', icon: ImageIcon },
 ];
 
 const CALCULATION_METHODS = [
@@ -44,7 +45,12 @@ export default function UmumPage() {
     calculationMethod: 'KEMENAG',
     runningText1: '',
     runningText2: '',
+    background: '',
   });
+
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: mosque, isLoading, error: mosqueError } = useQuery({
     queryKey: ['mosque'],
@@ -69,7 +75,11 @@ export default function UmumPage() {
         calculationMethod: mosque.calculation_method || 'KEMENAG',
         runningText1: mosque.runningText1 || '',
         runningText2: mosque.runningText2 || '',
+        background: mosque.background || '',
       });
+      if (mosque.background) {
+        setBackgroundPreview(mosque.background);
+      }
     }
   }, [mosque]);
 
@@ -219,6 +229,47 @@ export default function UmumPage() {
     setSaving(false);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File terlalu besar (max 10MB)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setBackgroundPreview(base64);
+      setFormState(prev => ({ ...prev, background: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveBackground = async () => {
+    if (!backgroundPreview) {
+      showToast('Pilih gambar terlebih dahulu');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/mosque/upload-background', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({ background: formState.background }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(data.error || 'Gagal menyimpan background');
+      } else {
+        showToast('Background berhasil disimpan & dikirim ke TV');
+        queryClient.invalidateQueries({ queryKey: ['mosque'] });
+      }
+    } catch {
+      showToast('Gagal menyimpan');
+    }
+    setSaving(false);
+  };
+
   useEffect(() => {
     if (!user) router.push('/login');
   }, [user, router]);
@@ -228,7 +279,7 @@ export default function UmumPage() {
   }
 
   if (user.role === 'superadmin') {
-    router.push('/admin/masjid');
+    void router.push('/admin/masjid');
     return null;
   }
 
@@ -438,28 +489,71 @@ export default function UmumPage() {
       );
     }
 
+   if (activeTab === 'background') {
+      return (
+        <div className="space-y-5">
+          <div>
+            <label className="text-sm font-medium text-foreground">Upload Background</label>
+            <p className="text-muted-foreground text-xs mb-2">Pilih gambar background untuk TV masjid (max 10MB)</p>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-3 rounded-lg transition-colors"
+            >
+              <ImageIcon className="w-5 h-5" />
+              Pilih Gambar
+            </button>
+          </div>
+
+          {backgroundPreview && (
+            <div className="space-y-2">
+              <p className="text-muted-foreground text-sm">Preview:</p>
+              <div className="relative rounded-lg overflow-hidden bg-slate-800/50">
+                <img src={backgroundPreview} alt="Background Preview" className="w-full h-auto max-h-96 object-contain" />
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={saveBackground}
+            disabled={saving || uploading || !backgroundPreview}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Simpan & Update TV
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-5">
         <div>
           <label className="text-sm font-medium text-foreground">Running Text 1</label>
           <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris atas (latar kuning)</p>
          <textarea
-             value={formState.runningText1}
-             onChange={e => setFormState(prev => ({ ...prev, runningText1: e.target.value }))}
-             className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-             placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
-           />
+            value={formState.runningText1}
+            onChange={e => setFormState(prev => ({ ...prev, runningText1: e.target.value }))}
+            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+            placeholder="Contoh: SALDO KAS MASJID HARI JUMAT SEBESAR Rp. 80.345.609 TERIMAKASIH"
+          />
         </div>
 
         <div>
           <label className="text-sm font-medium text-foreground">Running Text 2</label>
           <p className="text-muted-foreground text-xs mb-2">Teks berjalan baris bawah (latar merah)</p>
       <textarea
-             value={formState.runningText2}
-             onChange={e => setFormState(prev => ({ ...prev, runningText2: e.target.value }))}
-             className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
-             placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
-           />
+            value={formState.runningText2}
+            onChange={e => setFormState(prev => ({ ...prev, runningText2: e.target.value }))}
+            className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full min-h-[80px] resize-y"
+            placeholder="Contoh: BARANGSIAPA YANG BERSHOLAWAT KEPADAKU SEKALI, MAKA ALLAH AKAN BERSHOLAWAT KEPADANYA SEPULUH KALI"
+          />
         </div>
 
         <button

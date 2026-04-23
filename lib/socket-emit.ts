@@ -21,6 +21,7 @@ export async function emitConfigUpdate(mosqueId: number) {
       location: mosque.address || settings.location || '',
       runningText1: settings.runningText1 || '',
       runningText2: settings.runningText2 || '',
+      background: settings.background || '',
       lat: mosque.lat,
       long: mosque.long,
       calculationMethod: mosque.calculation_method || 'KEMENAG',
