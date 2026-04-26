@@ -14,7 +14,7 @@ export function AccordionItem({ title, icon, children, defaultOpen = false }: Ac
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="border border-slate-700 rounded-lg overflow-hidden">
+    <div className="rounded-lg overflow-hidden" style={{border: '1px solid rgba(16, 185, 129, 0.3)'}}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/50 hover:bg-slate-800 transition-colors text-left"

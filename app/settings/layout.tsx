@@ -58,9 +58,11 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   const closeUserMenu = () => setUserMenuOpen(false);
 
+  const borderStyle = '1px solid rgba(16, 185, 129, 0.3)';
+
   const userDropdown = (
-    <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-700">
+    <div className="absolute right-0 mt-2 w-56 bg-slate-800 rounded-xl shadow-xl z-20 overflow-hidden" style={{border: borderStyle}}>
+      <div className="px-4 py-3" style={{borderBottom: '1px solid rgba(16, 185, 129, 0.2)'}}>
         <p className="text-sm font-medium text-white">{user?.name || 'User'}</p>
         <p className="text-xs text-slate-400">{user?.email || user?.role}</p>
       </div>
@@ -83,7 +85,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-slate-900 border-b border-slate-800">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-slate-900" style={{borderBottom: borderStyle}}>
         <div className="flex items-center justify-between px-4 h-14">
           <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-slate-400 hover:text-white">
             <Menu className="w-6 h-6" />
@@ -106,7 +108,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       </div>
 
       {/* Desktop header */}
-      <header className="hidden lg:flex fixed top-0 right-0 z-20 h-14 items-center justify-between px-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm transition-all duration-300" style={{ left: sidebarCollapsed ? '4rem' : '14rem' }}>
+      <header className="hidden lg:flex fixed top-0 right-0 z-20 h-14 items-center justify-between px-4 bg-slate-900/80 backdrop-blur-sm transition-all duration-300" style={{borderBottom: borderStyle, left: sidebarCollapsed ? '4rem' : '14rem'}}>
         <nav className="flex items-center gap-2 text-sm">
           {breadcrumbs.map((crumb, index) => (
             <div key={index} className="flex items-center gap-2">
@@ -140,8 +142,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-40">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-slate-900 flex flex-col" style={{borderRight: borderStyle}}>
+            <div className="flex items-center justify-between p-4" style={{borderBottom: '1px solid rgba(16, 185, 129, 0.3)'}}>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 relative"><Image src="/logo.png" alt="Settings" fill className="object-contain" /></div>
                 <span className="font-bold text-white">Settings</span>
@@ -159,7 +161,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 );
               })}
             </nav>
-            <div className="p-4 border-t border-slate-800">
+            <div className="p-4" style={{borderTop: '1px solid rgba(16, 185, 129, 0.3)'}}>
               <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 w-full text-left text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg text-sm font-medium transition-colors">
                 <LogOut className="w-5 h-5" /><span>Keluar</span>
               </button>
@@ -169,8 +171,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       )}
 
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:bg-slate-900 lg:border-r lg:border-slate-800 transition-all duration-300 ${sidebarCollapsed ? 'lg:w-16' : 'lg:w-56'}`}>
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 h-14 shrink-0">
+      <aside className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:bg-slate-900 transition-all duration-300 ${sidebarCollapsed ? 'lg:w-16' : 'lg:w-56'}`} style={{borderRight: borderStyle}}>
+        <div className="flex items-center justify-between p-4 h-14 shrink-0" style={{borderBottom: '1px solid rgba(16, 185, 129, 0.3)'}}>
           {sidebarCollapsed ? (
             <div className="w-8 h-8 mx-auto relative"><Image src="/logo.png" alt="Settings" fill className="object-contain" /></div>
           ) : (
@@ -194,7 +196,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             );
           })}
         </nav>
-        <div className="p-2 border-t border-slate-800 shrink-0">
+        <div className="p-2" style={{borderTop: '1px solid rgba(16, 185, 129, 0.3)'}}>
           <button onClick={handleLogout} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-white w-full ${sidebarCollapsed ? 'justify-center' : ''}`} title={sidebarCollapsed ? 'Keluar' : undefined}>
             <LogOut className="w-5 h-5 shrink-0" />
             {!sidebarCollapsed && <span>Keluar</span>}
@@ -225,7 +227,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
       {/* Main content */}
       <div className={`pt-14 lg:pt-14 transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-56'}`}>
-        <div className="lg:hidden px-4 py-3 border-b border-slate-800 bg-slate-900">
+        <div className="lg:hidden px-4 py-3 bg-slate-900" style={{borderBottom: borderStyle}}>
           <nav className="flex items-center gap-2 text-sm">
             {breadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-2">
