@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon, Zap, Timer, Bell, Table, Trash2, Plus } from 'lucide-react';
+import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon, Timer, Bell, Table, Trash2, Plus } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { AccordionItem } from '@/components/ui/accordion';
 
@@ -663,155 +663,6 @@ export default function UmumPage() {
   const hasCoords = formState.lat && formState.long;
   const hasBackground = backgroundPreview || formState.background;
 
-  // Live Preview Component for TV Landscape Layout
-  const TvPreview = () => {
-    const [currentTime, setCurrentTime] = useState('');
-    const [isSeconds, setIsSeconds] = useState(true);
-    
-    useEffect(() => {
-      const updateTime = () => {
-        const now = new Date();
-        const h = now.getHours().toString().padStart(2, '0');
-        const m = now.getMinutes().toString().padStart(2, '0');
-        setCurrentTime(`${h}:${m}`);
-        setIsSeconds(prev => !prev);
-      };
-      updateTime();
-      const interval = setInterval(updateTime, 1000);
-      return () => clearInterval(interval);
-    }, []);
-
-    const prayerTimes = [
-      { name: 'Subuh', time: '04:38' },
-      { name: 'Dzuhur', time: '12:03' },
-      { name: 'Ashar', time: '15:08' },
-      { name: 'Maghrib', time: '18:05' },
-      { name: 'Isya', time: '19:15' }
-    ];
-
-    return (
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-emerald-400" />
-          Preview Tampilan TV Android (Landscape)
-        </h2>
-        
-        <div className="relative bg-black rounded-lg overflow-hidden shadow-xl border border-slate-700" style={{ aspectRatio: '16/9' }}>
-          {/* Background */}
-          {backgroundPreview ? (
-            <>
-              <img src={backgroundPreview} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-50" />
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-            </>
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900"></div>
-          )}
-
-          {/* Top Header Bar */}
-          <div className="relative z-10 flex items-center justify-between px-6 py-4 bg-white/90">
-            {/* Left: Clock - 30% */}
-            <div className="w-[30%] text-black font-bold leading-none" style={{ fontSize: 'clamp(2rem, 5vh, 4.5rem)' }}>
-              <span>{currentTime.split(':')[0]}</span>
-              <span style={{ opacity: isSeconds ? 1 : 0 }}>:</span>
-              <span>{currentTime.split(':')[1]}</span>
-            </div>
-
-            {/* Center: Mosque Name + Address - 40% */}
-            <div className="w-[40%] text-center">
-              <div className="text-black font-bold truncate" style={{ fontSize: 'clamp(1.2rem, 3vh, 2.7rem)' }}>
-                {formState.name || 'Nama Masjid'}
-              </div>
-              <div className="mt-1 overflow-hidden whitespace-nowrap text-xs text-slate-600">
-                {formState.address ? formState.address.split(',').slice(0, 2).join(',') : 'Alamat Masjid'}
-              </div>
-            </div>
-
-            {/* Right: Day + Date - 30% */}
-            <div className="w-[30%] text-right text-black leading-none" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
-              <div>{new Date().toLocaleDateString('id-ID', { weekday: 'long' }).split(',')[0]}</div>
-              <div className="text-sm">{new Date().toLocaleDateString('id-ID')}</div>
-            </div>
-          </div>
-
-          {/* Main Content Area */}
-          <div className="relative z-10 flex-1 min-h-[60%]">
-            {formState.isMuadzin ? (
-              // Muadzin Mode - Show Prayer Times with Countdown
-              <div className="grid grid-cols-5 gap-3 p-4 h-full" style={{ minHeight: '20vh' }}>
-                {prayerTimes.map((prayer) => {
-                  const isCountdownActive = Math.random() > 0.7; // Simulate countdown for demo
-                  const countdownValue = isCountdownActive ? 5 : null;
-
-                  return (
-                    <div key={prayer.name} className="bg-white rounded-md p-2 flex flex-col items-center justify-center relative">
-                      {countdownValue !== null && (
-                        <div className="absolute inset-0 bg-black/70 rounded-[4px] flex items-center justify-center z-10">
-                          <span className="text-white font-bold text-xl">{countdownValue}</span>
-                        </div>
-                      )}
-                      {!isCountdownActive && (
-                        <>
-                          <span className="text-black font-semibold capitalize" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
-                            {prayer.name}
-                          </span>
-                          <div className="flex-1"></div>
-                          <span className="text-black font-bold" style={{ fontSize: 'clamp(1.5rem, 4vh, 3.6rem)' }}>
-                            {prayer.time}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              // Normal Mode - Show Running Text Only
-              <div className="flex flex-col justify-center h-full">
-                {formState.runningText1 && (
-                  <div className="bg-yellow-300 py-2 text-black font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
-                    {formState.runningText1}
-                  </div>
-                )}
-                {formState.runningText2 && (
-                  <div className="bg-pink-600 py-2 text-white font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
-                    {formState.runningText2}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Running Text */}
-          <div className="relative z-10 flex-none">
-            {formState.runningText1 && (
-              <div className="bg-yellow-300 py-2 text-black font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(0.8rem, 2vh, 1.8rem)' }}>
-                {formState.runningText1}
-              </div>
-            )}
-            {formState.runningText2 && (
-              <div className="bg-pink-600 py-2 text-white font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(0.8rem, 2vh, 1.8rem)' }}>
-                {formState.runningText2}
-              </div>
-            )}
-          </div>
-
-          {/* Muadzin Badge */}
-          {formState.isMuadzin && (
-            <div className="absolute top-3 left-3 bg-white/60 rounded-md px-2 py-1 flex items-center gap-1 z-20">
-              <span className="text-black text-xs">🔊</span>
-              <span className="text-black text-xs font-semibold">Mode Muadzin</span>
-            </div>
-          )}
-
-          {/* Preview Label */}
-          <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-xs z-20">
-            TV Android Preview (Landscape)
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
     <style jsx global>{`
@@ -845,9 +696,6 @@ export default function UmumPage() {
         <h1 className="text-2xl font-bold text-white mb-1">Pengaturan Umum</h1>
         <p className="text-muted-foreground">Kelola informasi masjid dan pengaturan tampilan TV</p>
       </div>
-
-      {/* Live Preview Section */}
-      <TvPreview />
 
       <div className="space-y-3">
         {/* INFO ACCORDION */}
