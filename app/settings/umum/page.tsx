@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon, Zap } from 'lucide-react';
+import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon, Zap, Timer, Bell, Table, Trash2, Plus } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { AccordionItem } from '@/components/ui/accordion';
 
@@ -50,6 +50,42 @@ export default function UmumPage() {
   const [animationType, setAnimationType] = useState('slide_ltr');
   const [isInfiniteLoop, setIsInfiniteLoop] = useState(true);
   const sliderFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Timer & Announcement state
+  const [timerPreAdhanMinutes, setTimerPreAdhanMinutes] = useState(2);
+  const [timerIqamahSubuh, setTimerIqamahSubuh] = useState(5);
+  const [timerIqamahDzuhur, setTimerIqamahDzuhur] = useState(3);
+  const [timerIqamahAshar, setTimerIqamahAshar] = useState(2);
+  const [timerIqamahMaghrib, setTimerIqamahMaghrib] = useState(1);
+  const [timerIqamahIsya, setTimerIqamahIsya] = useState(2);
+  const [timerBeepEnabled, setTimerBeepEnabled] = useState(true);
+  const [timerBeepCount, setTimerBeepCount] = useState(3);
+  const [showSilentIcon, setShowSilentIcon] = useState(true);
+  const [adhanDisplayDuration, setAdhanDisplayDuration] = useState(5);
+
+  // Announcement state
+  interface Announcement {
+    id: string;
+    type: 'pengajian' | 'jumat_hari_raya' | 'table';
+    title: string;
+    subtitle?: string;
+    date?: string;
+    time_start?: string;
+    time_end?: string;
+    location?: string;
+    headers?: string[];
+    rows?: string[][];
+  }
+
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [activeAnnouncementType, setActiveAnnouncementType] = useState<'pengajian' | 'jumat_hari_raya' | 'table'>('pengajian');
+  const [newAnnouncement, setNewAnnouncement] = useState<Omit<Announcement, 'id' | 'type'>>({
+    title: '', subtitle: '', date: '', time_start: '', time_end: '', location: '', headers: [], rows: []
+  });
+
+  // Table announcement state
+  const [tableHeaders, setTableHeaders] = useState<string[]>(['No', 'Nama', 'Jumlah', 'Keterangan']);
+  const [tableRows, setTableRows] = useState<string[][]>([]);
 
   const { data: mosque, isLoading, error: mosqueError } = useQuery({
     queryKey: ['mosque'],
@@ -96,6 +132,25 @@ export default function UmumPage() {
         }
         setAnimationType(settings.animationType || 'slide_ltr');
         setIsInfiniteLoop(typeof settings.isInfiniteLoop !== 'undefined' ? settings.isInfiniteLoop : true);
+
+        // Load timer settings
+        if (settings.timerSettings) {
+          setTimerPreAdhanMinutes(settings.timerSettings.pre_adhan_countdown_minutes ?? 2);
+          setTimerIqamahSubuh(settings.timerSettings.iqamah_duration_minutes?.subuh ?? 5);
+          setTimerIqamahDzuhur(settings.timerSettings.iqamah_duration_minutes?.dzuhur ?? 3);
+          setTimerIqamahAshar(settings.timerSettings.iqamah_duration_minutes?.ashar ?? 2);
+          setTimerIqamahMaghrib(settings.timerSettings.iqamah_duration_minutes?.maghrib ?? 1);
+          setTimerIqamahIsya(settings.timerSettings.iqamah_duration_minutes?.isya ?? 2);
+          setTimerBeepEnabled(typeof settings.timerSettings.beep_sound_enabled === 'boolean' ? settings.timerSettings.beep_sound_enabled : true);
+          setTimerBeepCount(settings.timerSettings.beep_count ?? 3);
+          setShowSilentIcon(typeof settings.timerSettings.show_silent_icon_during_prayer !== 'undefined' ? settings.timerSettings.show_silent_icon_during_prayer : true);
+          setAdhanDisplayDuration(settings.timerSettings.adhan_display_duration ?? 5);
+        }
+
+        // Load announcements
+        if (settings.announcements && Array.isArray(settings.announcements)) {
+          setAnnouncements(settings.announcements);
+        }
       }
     }
   }, [mosque]);
@@ -409,6 +464,166 @@ export default function UmumPage() {
     setSaving(false);
   };
 
+  const saveTimerSettings = async () => {
+    if (!formState.isMuadzin) {
+      showToast('Mode Muadzin harus diaktifkan terlebih dahulu untuk menggunakan timer');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/mosque/upload-timer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({
+          timerSettings: {
+            pre_adhan_countdown_minutes: timerPreAdhanMinutes,
+            iqamah_duration_minutes: {
+              subuh: timerIqamahSubuh,
+              dzuhur: timerIqamahDzuhur,
+              ashar: timerIqamahAshar,
+              maghrib: timerIqamahMaghrib,
+              isya: timerIqamahIsya,
+            },
+            beep_sound_enabled: timerBeepEnabled,
+            beep_count: timerBeepCount,
+            show_silent_icon_during_prayer: showSilentIcon,
+            adhan_display_duration: adhanDisplayDuration,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(data.error || 'Gagal menyimpan timer');
+      } else {
+        showToast('Timer berhasil disimpan & dikirim ke TV');
+        queryClient.invalidateQueries({ queryKey: ['mosque'] });
+      }
+    } catch (error) {
+      showToast('Gagal menyimpan');
+    }
+    setSaving(false);
+  };
+
+  const saveAnnouncements = async () => {
+    if (!formState.isMuadzin) {
+      showToast('Mode Muadzin harus diaktifkan terlebih dahulu untuk menggunakan pengumuman');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/mosque/upload-timer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({
+          announcements: announcements,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(data.error || 'Gagal menyimpan pengumuman');
+      } else {
+        showToast('Pengumuman berhasil disimpan & dikirim ke TV');
+        queryClient.invalidateQueries({ queryKey: ['mosque'] });
+      }
+    } catch (error) {
+      showToast('Gagal menyimpan');
+    }
+    setSaving(false);
+  };
+
+  const addAnnouncement = () => {
+    if (!newAnnouncement.title) {
+      showToast('Judul pengumuman harus diisi');
+      return;
+    }
+
+    const newAnn: Announcement = {
+      id: Date.now().toString(),
+      type: activeAnnouncementType,
+      ...newAnnouncement,
+    };
+
+    setAnnouncements(prev => [...prev, newAnn]);
+    setNewAnnouncement({ title: '', subtitle: '', date: '', time_start: '', time_end: '', location: '', headers: [], rows: [] });
+    showToast('Pengumuman berhasil ditambahkan');
+  };
+
+  const removeAnnouncement = (id: string) => {
+    setAnnouncements(prev => prev.filter(a => a.id !== id));
+  };
+
+  // Table management functions
+  const updateTableHeader = (index: number, value: string) => {
+    const newHeaders = [...tableHeaders];
+    newHeaders[index] = value;
+    setTableHeaders(newHeaders);
+  };
+
+  const removeTableHeader = (index: number) => {
+    if (tableHeaders.length <= 1) {
+      showToast('Minimal harus ada 1 kolom');
+      return;
+    }
+    setTableHeaders(prev => prev.filter((_, i) => i !== index));
+    setTableRows(prev => prev.map(row => row.filter((_, i) => i !== index)));
+  };
+
+  const addTableRow = () => {
+    const newRow = new Array(tableHeaders.length).fill('');
+    setTableRows(prev => [...prev, newRow]);
+  };
+
+  const updateTableCell = (rowIndex: number, cellIndex: number, value: string) => {
+    const newRows = [...tableRows];
+    newRows[rowIndex] = [...newRows[rowIndex]];
+    newRows[rowIndex][cellIndex] = value;
+    setTableRows(newRows);
+  };
+
+  const removeTableRow = (index: number) => {
+    if (tableRows.length <= 1) {
+      showToast('Minimal harus ada 1 baris');
+      return;
+    }
+    setTableRows(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const saveTableData = async () => {
+    if (!formState.isMuadzin) {
+      showToast('Mode Muadzin harus diaktifkan terlebih dahulu untuk menggunakan tabel');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/mosque/upload-timer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({
+          tableAnnouncement: {
+            headers: tableHeaders,
+            rows: tableRows,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(data.error || 'Gagal menyimpan tabel');
+      } else {
+        showToast('Tabel berhasil disimpan & dikirim ke TV');
+        queryClient.invalidateQueries({ queryKey: ['mosque'] });
+      }
+    } catch (error) {
+      showToast('Gagal menyimpan');
+    }
+    setSaving(false);
+  };
+
   useEffect(() => {
     if (!user) router.push('/login');
   }, [user, router]);
@@ -448,6 +663,155 @@ export default function UmumPage() {
   const hasCoords = formState.lat && formState.long;
   const hasBackground = backgroundPreview || formState.background;
 
+  // Live Preview Component for TV Landscape Layout
+  const TvPreview = () => {
+    const [currentTime, setCurrentTime] = useState('');
+    const [isSeconds, setIsSeconds] = useState(true);
+    
+    useEffect(() => {
+      const updateTime = () => {
+        const now = new Date();
+        const h = now.getHours().toString().padStart(2, '0');
+        const m = now.getMinutes().toString().padStart(2, '0');
+        setCurrentTime(`${h}:${m}`);
+        setIsSeconds(prev => !prev);
+      };
+      updateTime();
+      const interval = setInterval(updateTime, 1000);
+      return () => clearInterval(interval);
+    }, []);
+
+    const prayerTimes = [
+      { name: 'Subuh', time: '04:38' },
+      { name: 'Dzuhur', time: '12:03' },
+      { name: 'Ashar', time: '15:08' },
+      { name: 'Maghrib', time: '18:05' },
+      { name: 'Isya', time: '19:15' }
+    ];
+
+    return (
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+          <Zap className="w-5 h-5 text-emerald-400" />
+          Preview Tampilan TV Android (Landscape)
+        </h2>
+        
+        <div className="relative bg-black rounded-lg overflow-hidden shadow-xl border border-slate-700" style={{ aspectRatio: '16/9' }}>
+          {/* Background */}
+          {backgroundPreview ? (
+            <>
+              <img src={backgroundPreview} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+            </>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900"></div>
+          )}
+
+          {/* Top Header Bar */}
+          <div className="relative z-10 flex items-center justify-between px-6 py-4 bg-white/90">
+            {/* Left: Clock - 30% */}
+            <div className="w-[30%] text-black font-bold leading-none" style={{ fontSize: 'clamp(2rem, 5vh, 4.5rem)' }}>
+              <span>{currentTime.split(':')[0]}</span>
+              <span style={{ opacity: isSeconds ? 1 : 0 }}>:</span>
+              <span>{currentTime.split(':')[1]}</span>
+            </div>
+
+            {/* Center: Mosque Name + Address - 40% */}
+            <div className="w-[40%] text-center">
+              <div className="text-black font-bold truncate" style={{ fontSize: 'clamp(1.2rem, 3vh, 2.7rem)' }}>
+                {formState.name || 'Nama Masjid'}
+              </div>
+              <div className="mt-1 overflow-hidden whitespace-nowrap text-xs text-slate-600">
+                {formState.address ? formState.address.split(',').slice(0, 2).join(',') : 'Alamat Masjid'}
+              </div>
+            </div>
+
+            {/* Right: Day + Date - 30% */}
+            <div className="w-[30%] text-right text-black leading-none" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
+              <div>{new Date().toLocaleDateString('id-ID', { weekday: 'long' }).split(',')[0]}</div>
+              <div className="text-sm">{new Date().toLocaleDateString('id-ID')}</div>
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="relative z-10 flex-1 min-h-[60%]">
+            {formState.isMuadzin ? (
+              // Muadzin Mode - Show Prayer Times with Countdown
+              <div className="grid grid-cols-5 gap-3 p-4 h-full" style={{ minHeight: '20vh' }}>
+                {prayerTimes.map((prayer) => {
+                  const isCountdownActive = Math.random() > 0.7; // Simulate countdown for demo
+                  const countdownValue = isCountdownActive ? 5 : null;
+
+                  return (
+                    <div key={prayer.name} className="bg-white rounded-md p-2 flex flex-col items-center justify-center relative">
+                      {countdownValue !== null && (
+                        <div className="absolute inset-0 bg-black/70 rounded-[4px] flex items-center justify-center z-10">
+                          <span className="text-white font-bold text-xl">{countdownValue}</span>
+                        </div>
+                      )}
+                      {!isCountdownActive && (
+                        <>
+                          <span className="text-black font-semibold capitalize" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
+                            {prayer.name}
+                          </span>
+                          <div className="flex-1"></div>
+                          <span className="text-black font-bold" style={{ fontSize: 'clamp(1.5rem, 4vh, 3.6rem)' }}>
+                            {prayer.time}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              // Normal Mode - Show Running Text Only
+              <div className="flex flex-col justify-center h-full">
+                {formState.runningText1 && (
+                  <div className="bg-yellow-300 py-2 text-black font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
+                    {formState.runningText1}
+                  </div>
+                )}
+                {formState.runningText2 && (
+                  <div className="bg-pink-600 py-2 text-white font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 2.5vh, 2.2rem)' }}>
+                    {formState.runningText2}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Running Text */}
+          <div className="relative z-10 flex-none">
+            {formState.runningText1 && (
+              <div className="bg-yellow-300 py-2 text-black font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(0.8rem, 2vh, 1.8rem)' }}>
+                {formState.runningText1}
+              </div>
+            )}
+            {formState.runningText2 && (
+              <div className="bg-pink-600 py-2 text-white font-bold overflow-hidden whitespace-nowrap" style={{ fontSize: 'clamp(0.8rem, 2vh, 1.8rem)' }}>
+                {formState.runningText2}
+              </div>
+            )}
+          </div>
+
+          {/* Muadzin Badge */}
+          {formState.isMuadzin && (
+            <div className="absolute top-3 left-3 bg-white/60 rounded-md px-2 py-1 flex items-center gap-1 z-20">
+              <span className="text-black text-xs">🔊</span>
+              <span className="text-black text-xs font-semibold">Mode Muadzin</span>
+            </div>
+          )}
+
+          {/* Preview Label */}
+          <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-xs z-20">
+            TV Android Preview (Landscape)
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
     <style jsx global>{`
@@ -481,6 +845,9 @@ export default function UmumPage() {
         <h1 className="text-2xl font-bold text-white mb-1">Pengaturan Umum</h1>
         <p className="text-muted-foreground">Kelola informasi masjid dan pengaturan tampilan TV</p>
       </div>
+
+      {/* Live Preview Section */}
+      <TvPreview />
 
       <div className="space-y-3">
         {/* INFO ACCORDION */}
@@ -897,16 +1264,237 @@ export default function UmumPage() {
               </button>
             </div>
             <button
-              onClick={saveAuto}
-              disabled={saving}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Simpan & Update TV
-            </button>
-          </div>
+               onClick={saveAuto}
+               disabled={saving}
+               className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+             >
+               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+               Simpan & Update TV
+             </button>
+           </div>
+         </AccordionItem>
+
+        {/* TIMER ACCORDION */}
+        <AccordionItem
+          title="Pengaturan Timer Countdown"
+          icon={<Timer className="w-5 h-5" />}
+        >
+          {!formState.isMuadzin ? (
+            <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center">
+              <p className="text-yellow-400 font-medium">Mode Muadzin harus diaktifkan terlebih dahulu</p>
+              <p className="text-muted-foreground text-sm mt-2">Klik toggle "Mode Muadzin" untuk mengaktifkan timer countdown</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Pre-Adhan Countdown */}
+              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                <label className="text-sm font-medium text-white block mb-2">Countdown sebelum Adhan (menit)</label>
+                <input
+                  type="number"
+                  value={timerPreAdhanMinutes}
+                  onChange={(e) => setTimerPreAdhanMinutes(Number(e.target.value))}
+                  min={1} max={30}
+                  className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-muted-foreground text-xs mt-1">Timer countdown akan berjalan sebelum adhan berkumandang</p>
+              </div>
+
+              {/* Iqamah Durations */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-white block">Durasi Iqamah per Waktu Sholat (menit)</label>
+                {[
+                  ['Subuh', timerIqamahSubuh, 'subuh'],
+                  ['Dzuhur', timerIqamahDzuhur, 'dzuhur'],
+                  ['Ashar', timerIqamahAshar, 'ashar'],
+                  ['Maghrib', timerIqamahMaghrib, 'maghrib'],
+                  ['Isya', timerIqamahIsya, 'isya']
+                ].map(([name, value, key]) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground w-24">{name}</span>
+                    <input
+                      type="number"
+                      value={value}
+                      onChange={(e) => {
+                        if (key === 'subuh') setTimerIqamahSubuh(Number(e.target.value));
+                        else if (key === 'dzuhur') setTimerIqamahDzuhur(Number(e.target.value));
+                        else if (key === 'ashar') setTimerIqamahAshar(Number(e.target.value));
+                        else if (key === 'maghrib') setTimerIqamahMaghrib(Number(e.target.value));
+                        else if (key === 'isya') setTimerIqamahIsya(Number(e.target.value));
+                      }}
+                      min={1} max={30}
+                      className="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                    <span className="text-xs text-muted-foreground">{value} menit</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Beep Settings */}
+              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700 space-y-3">
+                <label className="text-sm font-medium text-white block">Pengaturan Bunyi</label>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium">Aktifkan Beep Countdown</p>
+                    <p className="text-muted-foreground text-xs">Suarakan beep saat countdown berakhir</p>
+                  </div>
+                  <button
+                    onClick={() => setTimerBeepEnabled(!timerBeepEnabled)}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${timerBeepEnabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${timerBeepEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground w-24">Jumlah Beep</span>
+                  <input type="number" value={timerBeepCount} onChange={(e) => setTimerBeepCount(Number(e.target.value))} min={1} max={20} className="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium">Tampilkan Ikon Hening</p>
+                    <p className="text-muted-foreground text-xs">Ikon hening saat waktu sholat dimulai</p>
+                  </div>
+                  <button onClick={() => setShowSilentIcon(!showSilentIcon)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${showSilentIcon ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${showSilentIcon ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <button onClick={saveTimerSettings} disabled={saving} className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan Timer & Update TV
+              </button>
+            </div>
+          )}
         </AccordionItem>
-      </div>
+
+        {/* ANNOUNCEMENT ACCORDION */}
+        <AccordionItem title="Pengumuman & Info Jadwal" icon={<Bell className="w-5 h-5" />}>
+          {!formState.isMuadzin ? (
+            <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center">
+              <p className="text-yellow-400 font-medium">Mode Muadzin harus diaktifkan terlebih dahulu</p>
+              <p className="text-muted-foreground text-sm mt-2">Klik toggle "Mode Muadzin" untuk mengaktifkan pengumuman</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex gap-2">
+                {[{ key: 'pengajian', label: 'Pengajian' }, { key: 'jumat_hari_raya', label: 'Jumat / Hari Raya' }].map(tab => (
+                  <button key={tab.key} onClick={() => setActiveAnnouncementType(tab.key as 'pengajian' | 'jumat_hari_raya')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${activeAnnouncementType === tab.key ? 'bg-emerald-500 text-white' : 'bg-slate-800/50 text-muted-foreground hover:bg-slate-700'}`}>{tab.label}</button>
+                ))}
+              </div>
+
+              <div className="space-y-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                <label className="text-sm font-medium text-white block">Tambah Pengumuman Baru</label>
+                <input type="text" placeholder="Judul pengumuman" value={newAnnouncement.title} onChange={(e) => setNewAnnouncement(prev => ({ ...prev, title: e.target.value }))} className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500" />
+                <input type="text" placeholder="Subtitle (opsional)" value={newAnnouncement.subtitle} onChange={(e) => setNewAnnouncement(prev => ({ ...prev, subtitle: e.target.value }))} className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500" />
+                <div className="grid grid-cols-3 gap-2">
+                  <input type="date" value={newAnnouncement.date} onChange={(e) => setNewAnnouncement(prev => ({ ...prev, date: e.target.value }))} className="px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500" />
+                  <input type="time" value={newAnnouncement.time_start} onChange={(e) => setNewAnnouncement(prev => ({ ...prev, time_start: e.target.value }))} placeholder="Mulai" className="px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500" />
+                  <input type="time" value={newAnnouncement.time_end} onChange={(e) => setNewAnnouncement(prev => ({ ...prev, time_end: e.target.value }))} placeholder="Selesai" className="px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500" />
+                </div>
+                <input type="text" placeholder="Lokasi / Tempat (opsional)" value={newAnnouncement.location} onChange={(e) => setNewAnnouncement(prev => ({ ...prev, location: e.target.value }))} className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500" />
+                <button onClick={addAnnouncement} disabled={!newAnnouncement.title || saving} className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+                  <Plus className="w-4 h-4" /> Tambahkan Pengumuman
+                </button>
+              </div>
+
+              {announcements.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-white block">Pengumuman Tersimpan ({announcements.length})</label>
+                  {announcements.map(ann => (
+                    <div key={ann.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                      <div className="flex-1">
+                        <p className="text-white font-medium">{ann.title}</p>
+                        {ann.subtitle && <p className="text-muted-foreground text-xs">{ann.subtitle}</p>}
+                        {(ann.date || ann.time_start) && <p className="text-emerald-400 text-xs mt-1">{ann.date} • {ann.time_start}{ann.time_end ? ` - ${ann.time_end}` : ''}{ann.location ? ` • ${ann.location}` : ''}</p>}
+                      </div>
+                      <button onClick={() => removeAnnouncement(ann.id)} className="p-2 text-red-400 hover:text-red-300 transition-colors" title="Hapus pengumuman"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={saveAnnouncements} disabled={saving || announcements.length === 0} className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan Pengumuman & Update TV
+              </button>
+            </div>
+          )}
+        </AccordionItem>
+
+        {/* TABLE ANNOUNCEMENT ACCORDION */}
+        <AccordionItem title="Pengumuman Bentuk Tabel" icon={<Table className="w-5 h-5" />}>
+          {!formState.isMuadzin ? (
+            <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center">
+              <p className="text-yellow-400 font-medium">Mode Muadzin harus diaktifkan terlebih dahulu</p>
+              <p className="text-muted-foreground text-sm mt-2">Klik toggle "Mode Muadzin" untuk mengaktifkan pengumuman bentuk tabel</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Table Headers */}
+              <div className="space-y-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                <label className="text-sm font-medium text-white block">Kolom Tabel</label>
+                {tableHeaders.map((header, index) => (
+                  <div key={index} className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={header}
+                      onChange={(e) => updateTableHeader(index, e.target.value)}
+                      placeholder={`Kolom ${index + 1}`}
+                      className="flex-1 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                    <button onClick={() => removeTableHeader(index)} className="p-2 text-red-400 hover:text-red-300 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button onClick={() => setTableHeaders(prev => [...prev, 'Kolom Baru'])} className="w-full py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                  + Tambah Kolom
+                </button>
+              </div>
+
+              {/* Table Rows */}
+              <div className="space-y-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                <label className="text-sm font-medium text-white block">Baris Data</label>
+                {tableRows.length === 0 ? (
+                  <p className="text-muted-foreground text-sm text-center py-4">Belum ada baris data. Klik "Tambah Baris" untuk memulai.</p>
+                ) : (
+                  tableRows.map((row, rowIndex) => (
+                    <div key={rowIndex} className="flex items-center gap-2 mb-2 flex-wrap">
+                      {row.map((cell, cellIndex) => (
+                        <input
+                          key={`${rowIndex}-${cellIndex}`}
+                          type="text"
+                          value={cell}
+                          onChange={(e) => updateTableCell(rowIndex, cellIndex, e.target.value)}
+                          placeholder={`Baris ${rowIndex + 1}, Kolom ${cellIndex + 1}`}
+                          className="flex-1 min-w-[200px] px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      ))}
+                      <button onClick={() => removeTableRow(rowIndex)} className="p-2 text-red-400 hover:text-red-300 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+                <button onClick={addTableRow} className="w-full py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                  + Tambah Baris
+                </button>
+              </div>
+
+              {/* Save Button */}
+              <button onClick={saveTableData} disabled={saving || tableRows.length === 0} className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Simpan Tabel & Update TV
+              </button>
+
+              <p className="text-muted-foreground text-xs text-center">
+                Buat tabel untuk pengumuman jadwal, daftar nama, atau informasi lainnya di TV Android
+              </p>
+            </div>
+          )}
+        </AccordionItem>
+
+       </div>
 
       <style>{`
         @keyframes fadeSlideUp {
