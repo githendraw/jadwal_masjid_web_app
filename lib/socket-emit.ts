@@ -39,6 +39,7 @@ export async function emitConfigUpdate(mosqueId: number) {
       long: mosque.long,
       calculationMethod: mosque.calculation_method || 'KEMENAG',
       is_muadzin: settings.is_muadzin || false,
+      theme: settings.theme || 'klasik',
     });
   } catch (err) {
     console.error('Failed to emit config_update:', err);

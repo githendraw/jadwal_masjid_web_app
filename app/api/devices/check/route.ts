@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const row = rows[0];
     const settings = typeof row.settings === 'string' ? JSON.parse(row.settings) : row.settings || {};
 
-    return corsResponse({
+   return corsResponse({
       registered: true,
       device_uuid: row.device_uuid,
       mosque_id: row.mosque_id,
@@ -35,13 +35,26 @@ export async function GET(req: NextRequest) {
         location: row.address || settings.location || '',
  runningText1: settings.runningText1 || '',
          runningText2: settings.runningText2 || '',
-        background: settings.background || '',
-        lat: row.lat,
-        long: row.long,
-        calculationMethod: row.calculation_method || 'KEMENAG',
-        is_muadzin: settings.is_muadzin || false,
-      },
-    });
+         background: settings.background || '',
+         backgrounds: Array.isArray(settings.backgrounds) ? settings.backgrounds : [],
+         slideInterval: settings.slideInterval ?? 30000,
+         animationType: settings.animationType || 'slide_ltr',
+         isInfiniteLoop: typeof settings.isInfiniteLoop !== 'undefined' ? settings.isInfiniteLoop : true,
+         lat: row.lat,
+         long: row.long,
+         calculationMethod: row.calculation_method || 'KEMENAG',
+         is_muadzin: settings.is_muadzin || false,
+         timerSettings: settings.timerSettings || {
+           pre_adhan_countdown_minutes: 2,
+           iqamah_duration_minutes: { subuh: 5, dzuhur: 3, ashar: 2, maghrib: 1, isya: 2 },
+           beep_sound_enabled: true,
+           beep_count: 3,
+           show_silent_icon_during_prayer: true,
+           adhan_display_duration: 5,
+         },
+         announcements: settings.announcements || [],
+       },
+     });
   } catch (error) {
     console.error('Error checking device:', error);
     return corsResponse({ error: 'Internal server error' }, 500);

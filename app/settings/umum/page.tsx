@@ -39,6 +39,7 @@ export default function UmumPage() {
     runningText2: '',
     background: '',
     isMuadzin: false,
+    theme: 'klasik',
   });
 
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
@@ -128,6 +129,7 @@ export default function UmumPage() {
         runningText2: mosque.runningText2 || '',
         background: mosque.background || '',
         isMuadzin: mosque.is_muadzin || false,
+        theme: (() => { try { const s = typeof mosque.settings === 'string' ? JSON.parse(mosque.settings) : (mosque.settings || {}); return s.theme || 'klasik'; } catch { return 'klasik'; } })(),
       });
       if (mosque.background) {
         setBackgroundPreview(mosque.background);
@@ -371,7 +373,7 @@ export default function UmumPage() {
     try {
       const res = await fetch('/api/mosque/update', {
         method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
-        body: JSON.stringify({ name: formState.name, address: formState.address }),
+        body: JSON.stringify({ name: formState.name, address: formState.address, theme: formState.theme }),
       });
       if (!res.ok) { const data = await res.json(); showToast(data.error || 'Gagal menyimpan'); return; }
       showToast('Informasi berhasil disimpan & dikirim ke TV');
@@ -455,12 +457,32 @@ export default function UmumPage() {
     setSaving(true);
     try {
       localStorage.setItem('table_announcement', JSON.stringify({ headers: tableHeaders, rows: tableRows, columnStyles, rowBackgrounds }));
+      
+      // Merge existing announcements with the new table data
+      const existingAnnouncements = [...announcements];
+      const tableExistsIndex = existingAnnouncements.findIndex(a => a.type === 'table');
+      
+      const tableAnnouncement = {
+        id: Date.now().toString(),
+        type: 'table' as const,
+        title: 'Tabel Pengumuman',
+        headers: tableHeaders,
+        rows: tableRows.map((row, rowIndex) => ({ ...row, backgroundColor: rowBackgrounds[rowIndex] || null })),
+        columnStyles,
+      };
+      
+      if (tableExistsIndex >= 0) {
+        existingAnnouncements[tableExistsIndex] = tableAnnouncement;
+      } else {
+        existingAnnouncements.push(tableAnnouncement);
+      }
+      
       const res = await fetch('/api/mosque/upload-timer', {
         method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
-        body: JSON.stringify({ tableAnnouncement: { headers: tableHeaders, rows: tableRows, columnStyles, rowBackgrounds } }),
+        body: JSON.stringify({ announcements: existingAnnouncements }),
       });
       if (!res.ok) { const data = await res.json(); showToast(data.error || 'Gagal menyimpan tabel'); }
-      else { showToast('Tabel berhasil disimpan & dikirim ke TV'); queryClient.invalidateQueries({ queryKey: ['mosque'] }); }
+      else { showToast('Tabel berhasil disimpan & dikirim ke TV'); queryClient.invalidateQueries({ queryKey: ['mosque'] }); setAnnouncements(existingAnnouncements); }
     } catch (error) { showToast('Gagal menyimpan'); }
     setSaving(false);
   };
@@ -505,23 +527,34 @@ export default function UmumPage() {
 
       <div className="space-y-3">
 
-        {/* INFO ACCORDION */}
-        <AccordionItem title="Informasi Masjid" icon={<Building2 className="w-5 h-5" />}>
-          <div className="space-y-5">
-            <div>
-              <label className="text-sm font-medium text-foreground">Nama Masjid</label>
-              <input value={formState.name} onChange={e => setFormState(prev => ({ ...prev, name: e.target.value }))} className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full" placeholder="Masukkan nama masjid anda" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">Alamat</label>
-              <input value={formState.address} onChange={e => setFormState(prev => ({ ...prev, address: e.target.value }))} className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full" placeholder="Masukkan alamat masjid anda" />
-            </div>
-            <button onClick={saveInfo} disabled={saving} className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Simpan Informasi & Update TV
-            </button>
-          </div>
-        </AccordionItem>
+       {/* INFO ACCORDION */}
+         <AccordionItem title="Informasi Masjid" icon={<Building2 className="w-5 h-5" />}>
+           <div className="space-y-5">
+             <div>
+               <label className="text-sm font-medium text-foreground">Nama Masjid</label>
+               <input value={formState.name} onChange={e => setFormState(prev => ({ ...prev, name: e.target.value }))} className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full" placeholder="Masukkan nama masjid anda" />
+             </div>
+             <div>
+               <label className="text-sm font-medium text-foreground">Alamat</label>
+               <input value={formState.address} onChange={e => setFormState(prev => ({ ...prev, address: e.target.value }))} className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-full" placeholder="Masukkan alamat masjid anda" />
+             </div>
+             <div>
+               <label className="text-sm font-medium text-foreground">Tema Tampilan TV</label>
+               <div className="flex gap-3 mt-1">
+                   {(['klasik', 'modern', 'islamic'] as const).map(theme => (
+                     <button key={theme} onClick={() => setFormState(prev => ({ ...prev, theme }))} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${formState.theme === theme ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-muted-foreground hover:bg-slate-600'}`}>
+                       {theme === 'klasik' ? '🕌 Klasik' : theme === 'modern' ? '💎 Modern' : '🌙 Islamic'}
+                     </button>
+                   ))}
+                 </div>
+               <p className="text-muted-foreground text-xs mt-1">Pilih tampilan jadwal sholat di TV Android</p>
+             </div>
+             <button onClick={saveInfo} disabled={saving} className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+               Simpan Informasi & Update TV
+             </button>
+           </div>
+         </AccordionItem>
 
         {/* LOCATION ACCORDION */}
         <AccordionItem title="Lokasi & Koordinat" icon={<MapPin className="w-5 h-5" />}>

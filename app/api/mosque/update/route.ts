@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, address, lat, long, calculation_method, runningText1, runningText2, background, is_muadzin } = body;
+    const { name, address, lat, long, calculation_method, runningText1, runningText2, background, is_muadzin, theme } = body;
 
     const columns: string[] = [];
     const values: any[] = [];
@@ -77,6 +77,15 @@ export async function PUT(req: NextRequest) {
 
       if (is_muadzin !== undefined) {
         settingsUpdateData.is_muadzin = Boolean(is_muadzin);
+        needSettingsUpdate = true;
+      }
+
+      if (theme !== undefined) {
+        const validThemes = ['klasik', 'modern', 'islamic'];
+        if (!validThemes.includes(theme)) {
+          return NextResponse.json({ error: `Tema harus salah satu: ${validThemes.join(', ')}` }, { status: 400 });
+        }
+        settingsUpdateData.theme = theme;
         needSettingsUpdate = true;
       }
 
