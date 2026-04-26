@@ -38,9 +38,10 @@ export async function GET(req: NextRequest) {
        general_settings,
   runningText1: settings.runningText1 || '',
 runningText2: settings.runningText2 || '',
-        background: settings.background || '',
-       is_muadzin: settings.is_muadzin || false,
-     });
+       background: settings.background || '',
+        is_muadzin: settings.is_muadzin || false,
+        theme: settings.theme || 'klasik',
+      });
    } catch (err) {
     return corsResponse({ error: String(err) }, 500);
    }
