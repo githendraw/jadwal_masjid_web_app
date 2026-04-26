@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useSocket } from '@/lib/socket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon, Timer, Bell, Table, Trash2, Plus } from 'lucide-react';
+import { Building2, MapPin, Save, XCircle, Loader2, MessageSquare, Image as ImageIcon, Zap, Timer, Bell, Table, Trash2, Plus } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { AccordionItem } from '@/components/ui/accordion';
 
@@ -87,6 +87,17 @@ export default function UmumPage() {
   const [tableHeaders, setTableHeaders] = useState<string[]>(['No', 'Nama', 'Jumlah', 'Keterangan']);
   const [tableRows, setTableRows] = useState<string[][]>([]);
 
+  // Table column styles (bg color, text color, alignment per column)
+  interface ColumnStyle {
+    bg_color: string;
+    text_color: string;
+    align: 'left' | 'center' | 'right';
+  }
+  const [columnStyles, setColumnStyles] = useState<Record<number, ColumnStyle>>({});
+
+  // Table row background colors
+  const [rowBackgrounds, setRowBackgrounds] = useState<string[]>([]);
+
   const { data: mosque, isLoading, error: mosqueError } = useQuery({
     queryKey: ['mosque'],
     queryFn: async () => {
@@ -150,6 +161,28 @@ export default function UmumPage() {
         // Load announcements
         if (settings.announcements && Array.isArray(settings.announcements)) {
           setAnnouncements(settings.announcements);
+        }
+
+        // Load table data from settings
+        const savedTableData = localStorage.getItem('table_announcement');
+        if (savedTableData) {
+          try {
+            const parsed = JSON.parse(savedTableData);
+            if (parsed.headers && Array.isArray(parsed.headers)) {
+              setTableHeaders(parsed.headers);
+            }
+            if (parsed.rows && Array.isArray(parsed.rows)) {
+              setTableRows(parsed.rows);
+            }
+            if (parsed.columnStyles) {
+              setColumnStyles(parsed.columnStyles);
+            }
+            if (parsed.rowBackgrounds && Array.isArray(parsed.rowBackgrounds)) {
+              setRowBackgrounds(parsed.rowBackgrounds);
+            }
+          } catch (e) {
+            console.error('Failed to parse saved table data:', e);
+          }
         }
       }
     }
@@ -600,6 +633,13 @@ export default function UmumPage() {
 
     setSaving(true);
     try {
+      localStorage.setItem('table_announcement', JSON.stringify({
+        headers: tableHeaders,
+        rows: tableRows,
+        columnStyles,
+        rowBackgrounds,
+      }));
+
       const res = await fetch('/api/mosque/upload-timer', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
@@ -607,6 +647,8 @@ export default function UmumPage() {
           tableAnnouncement: {
             headers: tableHeaders,
             rows: tableRows,
+            columnStyles,
+            rowBackgrounds,
           },
         }),
       });
@@ -1300,6 +1342,50 @@ export default function UmumPage() {
                 </button>
               </div>
 
+              {/* Column Styles */}
+              {tableHeaders.length > 0 && (
+                <div className="space-y-4 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                  <label className="text-sm font-medium text-white block">Stil Kolom</label>
+                  {tableHeaders.map((header, index) => (
+                    <div key={index} className="p-3 rounded-lg bg-slate-700/50 border border-slate-600 space-y-2 mb-2">
+                      <p className="text-white text-sm font-medium">{header}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">Warna Latar</label>
+                          <input
+                            type="color"
+                            value={(columnStyles[index]?.bg_color) || '#000000'}
+                            onChange={(e) => setColumnStyles(prev => ({ ...prev, [index]: { ...prev[index], bg_color: e.target.value } }))}
+                            className="w-full h-9 px-1 py-1 rounded-lg bg-slate-700 border border-slate-600 cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">Warna Teks</label>
+                          <input
+                            type="color"
+                            value={(columnStyles[index]?.text_color) || '#FFFFFF'}
+                            onChange={(e) => setColumnStyles(prev => ({ ...prev, [index]: { ...prev[index], text_color: e.target.value } }))}
+                            className="w-full h-9 px-1 py-1 rounded-lg bg-slate-700 border border-slate-600 cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">Perataan</label>
+                          <select
+                            value={(columnStyles[index]?.align) || 'left'}
+                            onChange={(e) => setColumnStyles(prev => ({ ...prev, [index]: { ...prev[index], align: e.target.value as 'left' | 'center' | 'right' } }))}
+                            className="w-full px-2 py-1 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="left">Kiri</option>
+                            <option value="center">Tengah</option>
+                            <option value="right">Kanan</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Table Rows */}
               <div className="space-y-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                 <label className="text-sm font-medium text-white block">Baris Data</label>
@@ -1328,6 +1414,28 @@ export default function UmumPage() {
                   + Tambah Baris
                 </button>
               </div>
+
+              {/* Row Background Colors */}
+              {tableRows.length > 0 && (
+                <div className="space-y-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                  <label className="text-sm font-medium text-white block">Warna Latar Baris</label>
+                  {tableRows.map((row, rowIndex) => (
+                    <div key={rowIndex} className="flex items-center gap-2 mb-1">
+                      <span className="text-xs text-muted-foreground w-6">{rowIndex + 1}</span>
+                      <input
+                        type="color"
+                        value={rowBackgrounds[rowIndex] || '#000000'}
+                        onChange={(e) => {
+                          const newBg = [...rowBackgrounds];
+                          newBg[rowIndex] = e.target.value;
+                          setRowBackgrounds(newBg);
+                        }}
+                        className="w-full h-9 px-1 py-1 rounded-lg bg-slate-700 border border-slate-600 cursor-pointer"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Save Button */}
               <button onClick={saveTableData} disabled={saving || tableRows.length === 0} className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
