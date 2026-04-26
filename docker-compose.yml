@@ -15,10 +15,3 @@ services:
       - DB_NAME=jadwal_masjid
     ports:
       - "4000:4000"
-    networks:
-      - mysql-network
-
-networks:
-  mysql-network:
-    name: jadwal_masjid_network
-    external: true

@@ -44,6 +44,13 @@ export default function UmumPage() {
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Background Slider TV state
+  const [sliderBackgrounds, setSliderBackgrounds] = useState<string[]>([]);
+  const [slideInterval, setSlideInterval] = useState(30); // in seconds
+  const [animationType, setAnimationType] = useState('slide_ltr');
+  const [isInfiniteLoop, setIsInfiniteLoop] = useState(true);
+  const sliderFileInputRef = useRef<HTMLInputElement>(null);
+
   const { data: mosque, isLoading, error: mosqueError } = useQuery({
     queryKey: ['mosque'],
     queryFn: async () => {
@@ -72,6 +79,23 @@ export default function UmumPage() {
       });
       if (mosque.background) {
         setBackgroundPreview(mosque.background);
+      }
+      
+      // Load background slider data from mosque.settings
+      if (mosque.settings) {
+        const settings = typeof mosque.settings === 'string' ? JSON.parse(mosque.settings) : mosque.settings || {};
+        
+        // Load background slider data
+        if (settings.backgrounds && Array.isArray(settings.backgrounds)) {
+          setSliderBackgrounds(settings.backgrounds);
+        }
+        if (settings.slideInterval !== undefined) {
+          setSlideInterval(Math.floor((settings.slideInterval ?? 30000) / 1000)); // convert ms to seconds for UI
+        } else {
+          setSlideInterval(30);
+        }
+        setAnimationType(settings.animationType || 'slide_ltr');
+        setIsInfiniteLoop(typeof settings.isInfiniteLoop !== 'undefined' ? settings.isInfiniteLoop : true);
       }
     }
   }, [mosque]);
@@ -237,6 +261,85 @@ export default function UmumPage() {
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleSliderFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingCount = 10 - sliderBackgrounds.length;
+    if (files.length > remainingCount) {
+      showToast(`Maksimal 10 gambar. Tersisa ${remainingCount} slot.`);
+      return;
+    }
+
+    const compressedImages: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 10 * 1024 * 1024) {
+        showToast(`File ${file.name} terlalu besar (max 10MB)`);
+        return;
+      }
+
+      try {
+        const compressed = await compressImage(file);
+        compressedImages.push(compressed);
+      } catch (error) {
+        console.error('Error compressing image:', error);
+        showToast('Gagal memproses gambar');
+        return;
+      }
+    }
+
+    setSliderBackgrounds(prev => [...prev, ...compressedImages]);
+  };
+
+  const moveSliderImage = (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= sliderBackgrounds.length) return;
+    
+    const copy = [...sliderBackgrounds];
+    const [moved] = copy.splice(index, 1);
+    copy.splice(newIndex, 0, moved);
+    setSliderBackgrounds(copy);
+  };
+
+  const removeSliderImage = (index: number) => {
+    const copy = [...sliderBackgrounds];
+    copy.splice(index, 1);
+    setSliderBackgrounds(copy);
+  };
+
+  const saveBackgroundSlider = async () => {
+    if (sliderBackgrounds.length === 0) {
+      showToast('Tambahkan minimal 1 gambar');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/mosque/upload-backgrounds', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
+        body: JSON.stringify({
+          backgrounds: sliderBackgrounds,
+          slideInterval: slideInterval * 1000, // convert seconds to ms
+          animationType: animationType,
+          isInfiniteLoop: isInfiniteLoop,
+        }),
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(data.error || 'Gagal menyimpan background slider');
+      } else {
+        showToast('Background Slider berhasil disimpan & dikirim ke TV');
+        queryClient.invalidateQueries({ queryKey: ['mosque'] });
+      }
+    } catch (error) {
+      showToast('Gagal menyimpan');
+    }
+    setSaving(false);
   };
 
   const saveBackground = async () => {
@@ -609,6 +712,169 @@ export default function UmumPage() {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Simpan & Update TV
             </button>
+          </div>
+         </AccordionItem>
+
+        {/* BACKGROUND SLIDER TV ACCORDION */}
+        <AccordionItem
+          title="Background Slider TV"
+          icon={<ImageIcon className="w-5 h-5" />}
+        >
+          <div className="space-y-6">
+            <div>
+              <label className="text-sm font-medium text-foreground">Upload Gambar</label>
+              <p className="text-muted-foreground text-xs mb-3">
+                Upload minimal 1 gambar untuk slideshow (max 10 gambar). Setiap gambar max 10MB.
+              </p>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                ref={sliderFileInputRef}
+                onChange={handleSliderFileSelect}
+                className="hidden"
+              />
+              <div
+                onClick={() => sliderFileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all"
+              >
+                <ImageIcon className="w-10 h-10 mx-auto text-slate-500 mb-2" />
+                <p className="text-white font-medium">Klik untuk tambah gambar</p>
+                <p className="text-muted-foreground text-xs mt-1">PNG, JPG, WebP • Tersisa {10 - sliderBackgrounds.length} slot</p>
+              </div>
+            </div>
+
+            {sliderBackgrounds.length > 0 && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">
+                  Urutan Slide ({sliderBackgrounds.length} gambar)
+                </label>
+                
+                <div className="grid gap-3">
+                  {sliderBackgrounds.map((bg, index) => (
+                    <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-slate-800/50 border border-slate-700">
+                      <span className="text-xs text-muted-foreground font-bold w-6 text-center">{index + 1}</span>
+                      <img src={bg} alt={`Slide ${index + 1}`} className="w-24 h-16 object-cover rounded" />
+                      
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => moveSliderImage(index, -1)}
+                          disabled={index === 0}
+                          className="p-1 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                          title="Geser ke atas"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          onClick={() => moveSliderImage(index, 1)}
+                          disabled={index === sliderBackgrounds.length - 1}
+                          className="p-1 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                          title="Geser ke bawah"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                      
+                      <button
+                        onClick={() => removeSliderImage(index)}
+                        className="ml-auto p-1 text-red-400 hover:text-red-300 transition-colors"
+                        title="Hapus gambar"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-muted-foreground text-xs">
+                  Gunakan tombol ↑↓ untuk mengubah urutan slide. Gambar pertama akan tampil paling awal.
+                </p>
+              </div>
+            )}
+
+            {sliderBackgrounds.length > 0 && (
+              <div className="space-y-4 pt-2 border-t border-slate-700">
+                <label className="text-sm font-medium text-foreground">Pengaturan Slide</label>
+                
+                {/* Duration Setting */}
+                <div>
+                  <label htmlFor="slideInterval" className="text-sm font-medium text-foreground">Durasi Tampil (detik)</label>
+                  <input
+                    id="slideInterval"
+                    type="number"
+                    min={5}
+                    max={300}
+                    value={slideInterval}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (val >= 5 && val <= 300) setSlideInterval(val);
+                    }}
+                    className="input mt-1 bg-slate-800/50 border-slate-700 text-white w-[200px]"
+                  />
+                  <p className="text-muted-foreground text-xs mt-1">Animasi otomatis ~{Math.min(Math.floor(slideInterval / 2), 2)} detik</p>
+                </div>
+
+                {/* Animation Type */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Jenis Animasi</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setAnimationType('slide_ltr')}
+                      className={`p-3 rounded-lg border transition-all ${animationType === 'slide_ltr' ? 'border-emerald-500 bg-emerald-500/10 text-white' : 'border-slate-700 bg-slate-800/50 text-muted-foreground hover:border-slate-600'}`}
+                    >
+                      <div className="text-sm font-medium">Slide Kiri→Kanan</div>
+                      <div className="text-xs mt-1 opacity-75">Gambar baru masuk dari kiri</div>
+                    </button>
+                    <button
+                      onClick={() => setAnimationType('fade')}
+                      className={`p-3 rounded-lg border transition-all ${animationType === 'fade' ? 'border-emerald-500 bg-emerald-500/10 text-white' : 'border-slate-700 bg-slate-800/50 text-muted-foreground hover:border-slate-600'}`}
+                    >
+                      <div className="text-sm font-medium">Fade Crossfade</div>
+                      <div className="text-xs mt-1 opacity-75">Transisi halus (opacity)</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Infinite Loop Toggle */}
+                <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                  <div className="flex-1">
+                    <p className="text-white font-medium">Looping Otomatis</p>
+                    <p className="text-muted-foreground text-sm mt-1">Kembali ke gambar pertama setelah selesai</p>
+                  </div>
+                  <button
+                    onClick={() => setIsInfiniteLoop(!isInfiniteLoop)}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${isInfiniteLoop ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${isInfiniteLoop ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                {/* Save Button */}
+                <button
+                  onClick={saveBackgroundSlider}
+                  disabled={saving || sliderBackgrounds.length === 0}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 px-4 py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Simpan & Update TV
+                </button>
+
+                <p className="text-muted-foreground text-xs text-center">
+                  {sliderBackgrounds.length === 1 ? 'Satu gambar akan tampil statis (tanpa slideshow)' : `${sliderBackgrounds.length} gambar siap ditampilkan sebagai slideshow`}
+                </p>
+              </div>
+            )}
+
+            {sliderBackgrounds.length === 0 && (
+              <button
+                onClick={saveBackgroundSlider}
+                disabled={true}
+                className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white shadow-lg px-4 py-3 text-sm font-semibold rounded-lg transition-colors opacity-50 cursor-not-allowed"
+              >
+                <Save className="w-4 h-4" />
+                Simpan & Update TV
+              </button>
+            )}
           </div>
         </AccordionItem>
 
